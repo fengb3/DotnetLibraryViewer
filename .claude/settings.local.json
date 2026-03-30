@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dotnet:*)",
+      "WebSearch",
+      "Bash(grep \"Argument\\\\`1\" ~/.nuget/packages/system.commandline/2.0.5/lib/net8.0/System.CommandLine.xml)"
+    ]
+  }
+}
