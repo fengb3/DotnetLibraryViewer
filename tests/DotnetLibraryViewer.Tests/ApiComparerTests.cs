@@ -20,6 +20,23 @@ public class ApiComparerTests
         XmlDocSummary: null
     );
 
+    private static TypeInfo MakeObsoleteType(string name, string ns) => new(
+        Name: name,
+        FullName: $"{ns}.{name}",
+        Namespace: ns,
+        Kind: TypeKind.Class,
+        BaseType: null,
+        IsStatic: false,
+        IsAbstract: false,
+        IsSealed: false,
+        GenericParameterCount: 0,
+        GenericParameterNames: [],
+        Interfaces: [],
+        Members: [],
+        XmlDocSummary: null,
+        IsObsolete: true
+    );
+
     private static MemberInfo MakeMethod(string name, string fullName, bool isObsolete = false) => new(
         Name: name,
         DocId: $"M:{fullName}.{name}",
@@ -174,6 +191,37 @@ public class ApiComparerTests
 
         Assert.Single(filtered.AddedTypes);
         Assert.Equal("Ns1.A", filtered.AddedTypes[0].FullName);
+    }
+
+    [Fact]
+    public void Compare_NewlyObsoleteType_InResult()
+    {
+        var v1Type = MakeType("MyClass", "Ns");
+        var v2Type = MakeObsoleteType("MyClass", "Ns");
+        var v1 = MakeAssembly("Lib", "1.0.0", v1Type);
+        var v2 = MakeAssembly("Lib", "2.0.0", v2Type);
+
+        var result = ApiComparer.Compare(v1, v2);
+
+        Assert.Empty(result.AddedTypes);
+        Assert.Empty(result.RemovedTypes);
+        Assert.Single(result.NewlyObsoleteTypes);
+        Assert.Equal("Ns.MyClass", result.NewlyObsoleteTypes[0].FullName);
+        Assert.Empty(result.ChangedTypes);
+    }
+
+    [Fact]
+    public void Compare_AlreadyObsoleteTypeInBoth_NotInResult()
+    {
+        var v1Type = MakeObsoleteType("MyClass", "Ns");
+        var v2Type = MakeObsoleteType("MyClass", "Ns");
+        var v1 = MakeAssembly("Lib", "1.0.0", v1Type);
+        var v2 = MakeAssembly("Lib", "2.0.0", v2Type);
+
+        var result = ApiComparer.Compare(v1, v2);
+
+        Assert.Empty(result.NewlyObsoleteTypes);
+        Assert.Empty(result.ChangedTypes);
     }
 
     [Fact]

@@ -270,6 +270,12 @@ public static class Program
             var framework = parseResult.GetValue(frameworkOption);
             var nsFilter = parseResult.GetValue(namespaceOption);
 
+            if (package.EndsWith(".dll", StringComparison.OrdinalIgnoreCase) && File.Exists(package))
+            {
+                Console.Error.WriteLine("Error: compare-version requires a NuGet package name, not a DLL path.");
+                return 1;
+            }
+
             Console.Error.WriteLine($"Resolving {package} v{version1}...");
             var v1 = await ResolveAndReadAsync(package, version1, framework, null, ct);
 

@@ -192,14 +192,14 @@ public static class OutputFormatter
         Console.WriteLine($"Comparing {result.PackageName} v{result.Version1} -> v{result.Version2}");
         Console.WriteLine();
 
-        var totalChanged = result.AddedTypes.Count + result.RemovedTypes.Count + result.ChangedTypes.Count;
+        var totalChanged = result.AddedTypes.Count + result.RemovedTypes.Count + result.NewlyObsoleteTypes.Count + result.ChangedTypes.Count;
         if (totalChanged == 0)
         {
             Console.WriteLine("No API differences found.");
             return;
         }
 
-        Console.WriteLine($"{result.AddedTypes.Count} added type(s), {result.RemovedTypes.Count} removed type(s), {result.ChangedTypes.Count} changed type(s)");
+        Console.WriteLine($"{result.AddedTypes.Count} added type(s), {result.RemovedTypes.Count} removed type(s), {result.NewlyObsoleteTypes.Count} newly obsolete type(s), {result.ChangedTypes.Count} changed type(s)");
         Console.WriteLine();
 
         if (result.AddedTypes.Count > 0)
@@ -222,6 +222,16 @@ public static class OutputFormatter
             {
                 var kind = type.Kind.ToString().ToLowerInvariant();
                 Console.WriteLine($"  {kind} {type.FullName}");
+            }
+            Console.WriteLine();
+        }
+
+        if (result.NewlyObsoleteTypes.Count > 0)
+        {
+            Console.WriteLine("[!] Newly [Obsolete] Types:");
+            foreach (var type in result.NewlyObsoleteTypes)
+            {
+                Console.WriteLine($"  {type.FullName}");
             }
             Console.WriteLine();
         }

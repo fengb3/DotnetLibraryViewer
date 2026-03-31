@@ -6,6 +6,7 @@ public sealed record VersionComparisonResult(
     string Version2,
     IReadOnlyList<TypeInfo> AddedTypes,
     IReadOnlyList<TypeInfo> RemovedTypes,
+    IReadOnlyList<TypeInfo> NewlyObsoleteTypes,
     IReadOnlyList<TypeMemberDiff> ChangedTypes
 );
 

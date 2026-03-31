@@ -19,6 +19,13 @@ public static class ApiComparer
             .OrderBy(t => t.FullName)
             .ToList();
 
+        var newlyObsoleteTypes = v2.Types
+            .Where(t => t.IsObsolete
+                     && v1Types.TryGetValue(t.FullName, out var v1t)
+                     && !v1t.IsObsolete)
+            .OrderBy(t => t.FullName)
+            .ToList();
+
         var changedTypes = new List<TypeMemberDiff>();
         foreach (var v2Type in v2.Types.OrderBy(t => t.FullName))
         {
@@ -58,6 +65,7 @@ public static class ApiComparer
             v2.Version ?? "?",
             addedTypes,
             removedTypes,
+            newlyObsoleteTypes,
             changedTypes
         );
     }
@@ -73,6 +81,7 @@ public static class ApiComparer
         {
             AddedTypes = result.AddedTypes.Where(MatchesNs).ToList(),
             RemovedTypes = result.RemovedTypes.Where(MatchesNs).ToList(),
+            NewlyObsoleteTypes = result.NewlyObsoleteTypes.Where(MatchesNs).ToList(),
             ChangedTypes = result.ChangedTypes.Where(MatchesNsDiff).ToList()
         };
     }
