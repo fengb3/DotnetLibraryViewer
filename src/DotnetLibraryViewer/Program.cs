@@ -1,4 +1,5 @@
 using System.CommandLine;
+using System.CommandLine.Help;
 using System.Text;
 using DotnetLibraryViewer.Models;
 
@@ -6,20 +7,18 @@ namespace DotnetLibraryViewer;
 
 public static class Program
 {
-    private static string WithExamples(string description, params (string desc, string cmd)[] examples)
+    private static readonly Dictionary<Command, (string desc, string cmd)[]> CommandExamples = new();
+
+    private static void WriteExamples(Command command)
     {
-        var sb = new StringBuilder(description);
-        sb.AppendLine();
-        sb.AppendLine();
-        sb.Append("Examples:");
+        if (!CommandExamples.TryGetValue(command, out var examples)) return;
+        Console.WriteLine();
+        Console.WriteLine("Examples:");
         foreach (var (desc, cmd) in examples)
         {
-            sb.AppendLine();
-            sb.Append("  # ").Append(desc);
-            sb.AppendLine();
-            sb.Append("  ").Append(cmd);
+            Console.WriteLine($"  # {desc}");
+            Console.WriteLine($"  {cmd}");
         }
-        return sb.ToString();
     }
 
     public static async Task<int> Main(string[] args)
@@ -38,11 +37,7 @@ public static class Program
         var docPackageArg = new Argument<string>("package") { Description = "NuGet package name or path to a DLL file" };
         var outputOption = new Option<string?>("--output") { Description = "Output markdown file path" };
 
-        var docCommand = new Command("doc", WithExamples(
-            "Generate full Markdown documentation for a package",
-            ("Print docs to console", "dotnet lib-view doc Newtonsoft.Json"),
-            ("Save to file", "dotnet lib-view doc ./MyLib.dll --output docs.md"),
-            ("Filter by namespace", "dotnet lib-view doc Serilog --package-version 3.1.1 -n Serilog*")))
+        var docCommand = new Command("doc", "Generate full Markdown documentation for a package")
         {
             docPackageArg,
             versionOption,
@@ -51,6 +46,12 @@ public static class Program
             xmlOption,
             namespaceOption
         };
+        CommandExamples[docCommand] =
+        [
+            ("Print docs to console", "dotnet lib-view doc Newtonsoft.Json"),
+            ("Save to file", "dotnet lib-view doc ./MyLib.dll --output docs.md"),
+            ("Filter by namespace", "dotnet lib-view doc Serilog --package-version 3.1.1 -n Serilog*")
+        ];
 
         docCommand.SetAction(async (parseResult, ct) =>
         {
@@ -92,10 +93,7 @@ public static class Program
         var qtPackageArg = new Argument<string>("package") { Description = "NuGet package name or path to a DLL file" };
         var qtKeywordOption = new Option<string>("--keyword", "-k") { Description = "Wildcard pattern to match type names (* and ? supported)", Required = true };
 
-        var queryTypeCommand = new Command("query-type", WithExamples(
-            "List types matching a keyword pattern",
-            ("Wildcard search for types", "dotnet lib-view query-type Newtonsoft.Json -k *Serializer*"),
-            ("Filter by namespace", "dotnet lib-view query-type System.CommandLine -k Command -n System.CommandLine*")))
+        var queryTypeCommand = new Command("query-type", "List types matching a keyword pattern")
         {
             qtPackageArg,
             qtKeywordOption,
@@ -104,6 +102,11 @@ public static class Program
             xmlOption,
             namespaceOption
         };
+        CommandExamples[queryTypeCommand] =
+        [
+            ("Wildcard search for types", "dotnet lib-view query-type Newtonsoft.Json -k *Serializer*"),
+            ("Filter by namespace", "dotnet lib-view query-type System.CommandLine -k Command -n System.CommandLine*")
+        ];
 
         queryTypeCommand.SetAction(async (parseResult, ct) =>
         {
@@ -135,10 +138,7 @@ public static class Program
         var qmKeywordOption = new Option<string>("--keyword", "-k") { Description = "Wildcard pattern to match member names (* and ? supported)", Required = true };
         var qmTypeOption = new Option<string?>("--type", "-t") { Description = "Limit search to a specific type name (wildcard supported)" };
 
-        var queryMemberCommand = new Command("query-member", WithExamples(
-            "List members matching a keyword pattern",
-            ("Search members across all types", "dotnet lib-view query-member Newtonsoft.Json -k *Serialize*"),
-            ("Limit to a specific type", "dotnet lib-view query-member System.CommandLine -k *Parse* -t Command")))
+        var queryMemberCommand = new Command("query-member", "List members matching a keyword pattern")
         {
             qmPackageArg,
             qmKeywordOption,
@@ -148,6 +148,11 @@ public static class Program
             xmlOption,
             namespaceOption
         };
+        CommandExamples[queryMemberCommand] =
+        [
+            ("Search members across all types", "dotnet lib-view query-member Newtonsoft.Json -k *Serialize*"),
+            ("Limit to a specific type", "dotnet lib-view query-member System.CommandLine -k *Parse* -t Command")
+        ];
 
         queryMemberCommand.SetAction(async (parseResult, ct) =>
         {
@@ -193,11 +198,7 @@ public static class Program
         var dTypeOption = new Option<string>("--type", "-t") { Description = "Type name to inspect", Required = true };
         var dMemberOption = new Option<string?>("--member", "-m") { Description = "Member name to inspect (optional)" };
 
-        var detailCommand = new Command("detail", WithExamples(
-            "Show detailed information about a type or member",
-            ("Inspect a type", "dotnet lib-view detail Newtonsoft.Json -t JsonSerializer"),
-            ("Inspect a specific member", "dotnet lib-view detail Newtonsoft.Json -t JsonSerializer -m Serialize"),
-            ("Works with local DLLs", "dotnet lib-view detail ./MyLib.dll -t MyNamespace.MyClass")))
+        var detailCommand = new Command("detail", "Show detailed information about a type or member")
         {
             dPackageArg,
             dTypeOption,
@@ -207,6 +208,12 @@ public static class Program
             xmlOption,
             namespaceOption
         };
+        CommandExamples[detailCommand] =
+        [
+            ("Inspect a type", "dotnet lib-view detail Newtonsoft.Json -t JsonSerializer"),
+            ("Inspect a specific member", "dotnet lib-view detail Newtonsoft.Json -t JsonSerializer -m Serialize"),
+            ("Works with local DLLs", "dotnet lib-view detail ./MyLib.dll -t MyNamespace.MyClass")
+        ];
 
         detailCommand.SetAction(async (parseResult, ct) =>
         {
@@ -283,10 +290,7 @@ public static class Program
         var cvV1Option = new Option<string>("--version1", "-v1") { Description = "First version to compare", Required = true };
         var cvV2Option = new Option<string>("--version2", "-v2") { Description = "Second version to compare", Required = true };
 
-        var compareVersionCommand = new Command("compare-version", WithExamples(
-            "Compare API surface between two versions of a package",
-            ("Compare two versions", "dotnet lib-view compare-version Serilog -v1 2.12.0 -v2 3.1.1"),
-            ("Filter diff by namespace", "dotnet lib-view compare-version Newtonsoft.Json -v1 12.0.3 -v2 13.0.3 -n Newtonsoft.Json*")))
+        var compareVersionCommand = new Command("compare-version", "Compare API surface between two versions of a package")
         {
             cvPackageArg,
             cvV1Option,
@@ -294,6 +298,11 @@ public static class Program
             frameworkOption,
             namespaceOption
         };
+        CommandExamples[compareVersionCommand] =
+        [
+            ("Compare two versions", "dotnet lib-view compare-version Serilog -v1 2.12.0 -v2 3.1.1"),
+            ("Filter diff by namespace", "dotnet lib-view compare-version Newtonsoft.Json -v1 12.0.3 -v2 13.0.3 -n Newtonsoft.Json*")
+        ];
 
         compareVersionCommand.SetAction(async (parseResult, ct) =>
         {
@@ -331,7 +340,21 @@ public static class Program
         rootCommand.Subcommands.Add(detailCommand);
         rootCommand.Subcommands.Add(compareVersionCommand);
 
-        return await rootCommand.Parse(args).InvokeAsync();
+        var parseResult = rootCommand.Parse(args);
+
+        // If help is requested for a subcommand, append examples after the default help output
+        if (parseResult.Action is HelpAction)
+        {
+            var cmd = parseResult.CommandResult.Command;
+            if (cmd is not RootCommand)
+            {
+                var exitCode = await parseResult.InvokeAsync();
+                WriteExamples(cmd);
+                return exitCode;
+            }
+        }
+
+        return await parseResult.InvokeAsync();
     }
 
     private static async Task<AssemblyInfo> ResolveAndReadAsync(
