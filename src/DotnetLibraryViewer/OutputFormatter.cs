@@ -186,4 +186,60 @@ public static class OutputFormatter
 
     private static string Truncate(string text, int maxLength)
         => text.Length <= maxLength ? text : text[..(maxLength - 3)] + "...";
+
+    public static void WriteComparisonResult(VersionComparisonResult result)
+    {
+        Console.WriteLine($"Comparing {result.PackageName} v{result.Version1} -> v{result.Version2}");
+        Console.WriteLine();
+
+        var totalChanged = result.AddedTypes.Count + result.RemovedTypes.Count + result.ChangedTypes.Count;
+        if (totalChanged == 0)
+        {
+            Console.WriteLine("No API differences found.");
+            return;
+        }
+
+        Console.WriteLine($"{result.AddedTypes.Count} added type(s), {result.RemovedTypes.Count} removed type(s), {result.ChangedTypes.Count} changed type(s)");
+        Console.WriteLine();
+
+        if (result.AddedTypes.Count > 0)
+        {
+            Console.WriteLine("[+] Added Types:");
+            foreach (var type in result.AddedTypes)
+            {
+                var kind = type.Kind.ToString().ToLowerInvariant();
+                Console.WriteLine($"  {kind} {type.FullName}");
+                if (!string.IsNullOrWhiteSpace(type.XmlDocSummary))
+                    Console.WriteLine($"    {Truncate(type.XmlDocSummary, 100)}");
+            }
+            Console.WriteLine();
+        }
+
+        if (result.RemovedTypes.Count > 0)
+        {
+            Console.WriteLine("[-] Removed Types:");
+            foreach (var type in result.RemovedTypes)
+            {
+                var kind = type.Kind.ToString().ToLowerInvariant();
+                Console.WriteLine($"  {kind} {type.FullName}");
+            }
+            Console.WriteLine();
+        }
+
+        if (result.ChangedTypes.Count > 0)
+        {
+            Console.WriteLine("[*] Changed Types:");
+            foreach (var diff in result.ChangedTypes)
+            {
+                Console.WriteLine($"  {diff.TypeInV2.FullName}:");
+
+                foreach (var m in diff.AddedMembers)
+                    Console.WriteLine($"    [+] {m.Signature}");
+                foreach (var m in diff.RemovedMembers)
+                    Console.WriteLine($"    [-] {m.Signature}");
+                foreach (var m in diff.NewlyObsoleteMembers)
+                    Console.WriteLine($"    [!] [Obsolete] {m.Signature}");
+            }
+        }
+    }
 }

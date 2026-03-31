@@ -42,5 +42,6 @@ public sealed record MemberInfo(
     string? XmlDocSummary,
     IReadOnlyDictionary<string, string>? XmlDocParameters = null,
     IReadOnlyDictionary<string, string>? XmlDocTypeParameters = null,
-    string? XmlDocReturns = null
+    string? XmlDocReturns = null,
+    bool IsObsolete = false
 );
