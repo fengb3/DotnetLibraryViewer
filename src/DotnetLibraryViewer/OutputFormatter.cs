@@ -48,11 +48,11 @@ public static class OutputFormatter
         string? lastType = null;
         foreach (var (type, member) in list)
         {
-            if (type.Name != lastType)
+            if (type.FullName != lastType)
             {
                 if (lastType is not null) Console.WriteLine();
-                Console.WriteLine($"  {type.Name}:");
-                lastType = type.Name;
+                Console.WriteLine($"  {type.FullName}:");
+                lastType = type.FullName;
             }
 
             var kind = member.Kind.ToString().ToLowerInvariant();

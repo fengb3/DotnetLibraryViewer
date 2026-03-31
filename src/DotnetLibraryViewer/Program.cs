@@ -193,14 +193,15 @@ public static class Program
             var candidateTypes = assembly.Types.AsEnumerable();
             if (nsFilter is not null)
                 candidateTypes = candidateTypes.Where(t => t.Namespace is not null && WildcardMatcher.IsMatch(t.Namespace, nsFilter));
+            var candidateList = candidateTypes.ToList();
 
-            var type = candidateTypes.FirstOrDefault(t =>
+            var type = candidateList.FirstOrDefault(t =>
                 t.Name == typeName || t.FullName == typeName || t.FullName.Replace('+', '.') == typeName);
 
             if (type is null)
             {
                 // Try wildcard match
-                type = candidateTypes.FirstOrDefault(t =>
+                type = candidateList.FirstOrDefault(t =>
                     WildcardMatcher.IsMatch(t.Name, typeName) ||
                     WildcardMatcher.IsMatch(t.FullName, typeName) ||
                     WildcardMatcher.IsMatch(t.FullName.Replace('+', '.'), typeName));
@@ -210,7 +211,7 @@ public static class Program
             {
                 Console.Error.WriteLine($"Type '{typeName}' not found.");
 
-                var suggestions = candidateTypes
+                var suggestions = candidateList
                     .Where(t => t.Name.Contains(typeName, StringComparison.OrdinalIgnoreCase)
                              || t.FullName.Contains(typeName, StringComparison.OrdinalIgnoreCase))
                     .Take(5)

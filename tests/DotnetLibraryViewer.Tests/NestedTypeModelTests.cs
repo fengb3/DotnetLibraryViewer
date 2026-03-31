@@ -106,6 +106,30 @@ public class NestedTypeModelTests
     }
 
     [Fact]
+    public void TypeInfo_DeeplyNested_ThreeLevels()
+    {
+        // Simulates A+B+C
+        var type = CreateNestedType("C", "Ns.A+B+C", "Ns", "Ns.A+B");
+
+        Assert.Equal("Ns.A+B+C", type.FullName);
+        Assert.Equal("Ns", type.Namespace);
+        Assert.Equal("Ns.A+B", type.DeclaringType);
+        Assert.Equal("C", type.Name);
+    }
+
+    [Fact]
+    public void WildcardMatcher_DeeplyNestedDotForm()
+    {
+        // FullName.Replace('+', '.') gives "Ns.A.B.C"
+        var fullName = "Ns.A+B+C";
+        var dotForm = fullName.Replace('+', '.');
+
+        Assert.Equal("Ns.A.B.C", dotForm);
+        Assert.True(WildcardMatcher.IsMatch(dotForm, "*A.B.C"));
+        Assert.True(WildcardMatcher.IsMatch(dotForm, "Ns.*"));
+    }
+
+    [Fact]
     public void WildcardMatcher_FindsNestedTypeByShortName()
     {
         var type = CreateNestedType("EventMessage", "Ns.OuterType+EventMessage", "Ns", "Ns.OuterType");
