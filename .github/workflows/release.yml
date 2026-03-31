@@ -55,12 +55,22 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
-      - name: Extract version from tag
+      - name: Extract version from csproj
         id: version
-        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+        run: |
+          VERSION=$(grep -oP '(?<=<Version>)[^<]+' src/DotnetLibraryViewer/DotnetLibraryViewer.csproj)
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Verify tag matches csproj version
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          if [ "$TAG_VERSION" != "${{ steps.version.outputs.VERSION }}" ]; then
+            echo "Tag version ($TAG_VERSION) does not match csproj version (${{ steps.version.outputs.VERSION }})"
+            exit 1
+          fi
 
       - name: Pack NuGet tool
-        run: dotnet pack src/DotnetLibraryViewer -c Release -p:PackageVersion=${{ steps.version.outputs.VERSION }} -o ./nupkg
+        run: dotnet pack src/DotnetLibraryViewer -c Release -o ./nupkg
 
       - name: Push to NuGet
         run: dotnet nuget push ./nupkg/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
