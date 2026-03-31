@@ -32,7 +32,7 @@ public static class Program
         var xmlOption = new Option<string?>("--xml") { Description = "Path to XML documentation file (local DLL mode)" };
         var namespaceOption = new Option<string?>("--namespace", "-n") { Description = "Filter by namespace (wildcard supported)" };
 
-        var rootCommand = new RootCommand("dlv - .NET Library Viewer: inspect NuGet packages and DLLs");
+        var rootCommand = new RootCommand("dotnet lib-view - .NET Library Viewer: inspect NuGet packages and DLLs");
 
         // === doc subcommand (original full markdown output) ===
         var docPackageArg = new Argument<string>("package") { Description = "NuGet package name or path to a DLL file" };
@@ -40,9 +40,9 @@ public static class Program
 
         var docCommand = new Command("doc", WithExamples(
             "Generate full Markdown documentation for a package",
-            ("Print docs to console", "dlv doc Newtonsoft.Json"),
-            ("Save to file", "dlv doc ./MyLib.dll --output docs.md"),
-            ("Filter by namespace", "dlv doc Serilog --package-version 3.1.1 -n Serilog*")))
+            ("Print docs to console", "dotnet lib-view doc Newtonsoft.Json"),
+            ("Save to file", "dotnet lib-view doc ./MyLib.dll --output docs.md"),
+            ("Filter by namespace", "dotnet lib-view doc Serilog --package-version 3.1.1 -n Serilog*")))
         {
             docPackageArg,
             versionOption,
@@ -94,8 +94,8 @@ public static class Program
 
         var queryTypeCommand = new Command("query-type", WithExamples(
             "List types matching a keyword pattern",
-            ("Wildcard search for types", "dlv query-type Newtonsoft.Json -k *Serializer*"),
-            ("Filter by namespace", "dlv query-type System.CommandLine -k Command -n System.CommandLine*")))
+            ("Wildcard search for types", "dotnet lib-view query-type Newtonsoft.Json -k *Serializer*"),
+            ("Filter by namespace", "dotnet lib-view query-type System.CommandLine -k Command -n System.CommandLine*")))
         {
             qtPackageArg,
             qtKeywordOption,
@@ -137,8 +137,8 @@ public static class Program
 
         var queryMemberCommand = new Command("query-member", WithExamples(
             "List members matching a keyword pattern",
-            ("Search members across all types", "dlv query-member Newtonsoft.Json -k *Serialize*"),
-            ("Limit to a specific type", "dlv query-member System.CommandLine -k *Parse* -t Command")))
+            ("Search members across all types", "dotnet lib-view query-member Newtonsoft.Json -k *Serialize*"),
+            ("Limit to a specific type", "dotnet lib-view query-member System.CommandLine -k *Parse* -t Command")))
         {
             qmPackageArg,
             qmKeywordOption,
@@ -195,9 +195,9 @@ public static class Program
 
         var detailCommand = new Command("detail", WithExamples(
             "Show detailed information about a type or member",
-            ("Inspect a type", "dlv detail Newtonsoft.Json -t JsonSerializer"),
-            ("Inspect a specific member", "dlv detail Newtonsoft.Json -t JsonSerializer -m Serialize"),
-            ("Works with local DLLs", "dlv detail ./MyLib.dll -t MyNamespace.MyClass")))
+            ("Inspect a type", "dotnet lib-view detail Newtonsoft.Json -t JsonSerializer"),
+            ("Inspect a specific member", "dotnet lib-view detail Newtonsoft.Json -t JsonSerializer -m Serialize"),
+            ("Works with local DLLs", "dotnet lib-view detail ./MyLib.dll -t MyNamespace.MyClass")))
         {
             dPackageArg,
             dTypeOption,
@@ -285,8 +285,8 @@ public static class Program
 
         var compareVersionCommand = new Command("compare-version", WithExamples(
             "Compare API surface between two versions of a package",
-            ("Compare two versions", "dlv compare-version Serilog -v1 2.12.0 -v2 3.1.1"),
-            ("Filter diff by namespace", "dlv compare-version Newtonsoft.Json -v1 12.0.3 -v2 13.0.3 -n Newtonsoft.Json*")))
+            ("Compare two versions", "dotnet lib-view compare-version Serilog -v1 2.12.0 -v2 3.1.1"),
+            ("Filter diff by namespace", "dotnet lib-view compare-version Newtonsoft.Json -v1 12.0.3 -v2 13.0.3 -n Newtonsoft.Json*")))
         {
             cvPackageArg,
             cvV1Option,

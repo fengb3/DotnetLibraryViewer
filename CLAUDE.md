@@ -13,7 +13,7 @@ dotnet publish src/DotnetLibraryViewer -r win-x64 -c Release  # AOT publish (req
 
 ## Architecture
 
-`dlv` is a .NET 10 AOT-compatible CLI tool that reads .NET assembly metadata and outputs Markdown documentation.
+`dotnet lib-view` is a .NET 10 AOT-compatible CLI tool that reads .NET assembly metadata and outputs Markdown documentation.
 
 **Data pipeline:** `PackageResolver` -> `AssemblyReader` -> `XmlDocReader` -> `MarkdownGenerator`
 
@@ -36,10 +36,10 @@ Immutable `sealed record` types: `AssemblyInfo`, `TypeInfo`, `MemberInfo`, `Para
 ## CLI Commands
 
 ```
-dlv doc <package> [options]                                  # Full Markdown documentation
-dlv query-type <package> -k <pattern> [options]              # List types matching wildcard
-dlv query-member <package> -k <pattern> [-t <type>] [options] # List members matching wildcard
-dlv detail <package> -t <type> [-m <member>] [options]       # Show full type/member details
+dotnet lib-view doc <package> [options]                                  # Full Markdown documentation
+dotnet lib-view query-type <package> -k <pattern> [options]              # List types matching wildcard
+dotnet lib-view query-member <package> -k <pattern> [-t <type>] [options] # List members matching wildcard
+dotnet lib-view detail <package> -t <type> [-m <member>] [options]       # Show full type/member details
 ```
 
 Shared options (on every subcommand): `--package-version`, `--framework`, `--xml`
