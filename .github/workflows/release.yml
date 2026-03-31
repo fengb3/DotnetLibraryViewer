@@ -2,14 +2,43 @@ name: Release
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches: [main]
+    paths:
+      - 'src/DotnetLibraryViewer/DotnetLibraryViewer.csproj'
 
 permissions:
   contents: write
 
 jobs:
+  check-version:
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.check.outputs.changed }}
+      version: ${{ steps.check.outputs.version }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Check if version changed
+        id: check
+        run: |
+          VERSION=$(grep -oP '(?<=<Version>)[^<]+' src/DotnetLibraryViewer/DotnetLibraryViewer.csproj)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+          OLD_VERSION=$(git show HEAD~1:src/DotnetLibraryViewer/DotnetLibraryViewer.csproj 2>/dev/null | grep -oP '(?<=<Version>)[^<]+' || echo "")
+          if [ "$VERSION" != "$OLD_VERSION" ]; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "Version changed: $OLD_VERSION -> $VERSION"
+          else
+            echo "changed=false" >> $GITHUB_OUTPUT
+            echo "Version unchanged: $VERSION"
+          fi
+
   build-aot:
+    needs: check-version
+    if: needs.check-version.outputs.changed == 'true'
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -45,6 +74,8 @@ jobs:
           path: ./artifacts/dlv${{ matrix.ext }}
 
   publish-nuget:
+    needs: check-version
+    if: needs.check-version.outputs.changed == 'true'
     runs-on: ubuntu-latest
 
     steps:
@@ -54,20 +85,6 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
-
-      - name: Extract version from csproj
-        id: version
-        run: |
-          VERSION=$(grep -oP '(?<=<Version>)[^<]+' src/DotnetLibraryViewer/DotnetLibraryViewer.csproj)
-          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
-
-      - name: Verify tag matches csproj version
-        run: |
-          TAG_VERSION="${GITHUB_REF_NAME#v}"
-          if [ "$TAG_VERSION" != "${{ steps.version.outputs.VERSION }}" ]; then
-            echo "Tag version ($TAG_VERSION) does not match csproj version (${{ steps.version.outputs.VERSION }})"
-            exit 1
-          fi
 
       - name: Pack NuGet tool
         run: dotnet pack src/DotnetLibraryViewer -c Release -o ./nupkg
@@ -82,19 +99,25 @@ jobs:
           path: ./nupkg/*.nupkg
 
   create-release:
-    needs: [build-aot, publish-nuget]
+    needs: [check-version, build-aot, publish-nuget]
     runs-on: ubuntu-latest
 
     steps:
+      - uses: actions/checkout@v4
+
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
           path: ./artifacts
           merge-multiple: true
 
+      - name: Create tag
+        run: git tag v${{ needs.check-version.outputs.version }} && git push origin v${{ needs.check-version.outputs.version }}
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: v${{ needs.check-version.outputs.version }}
           generate_release_notes: true
           files: |
             ./artifacts/*
