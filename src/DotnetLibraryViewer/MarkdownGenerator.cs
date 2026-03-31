@@ -56,6 +56,12 @@ public static class MarkdownGenerator
         sb.AppendLine($"### `{modifierStr}{kind} {type.Name}{genericSuffix}{inheritStr}`");
         sb.AppendLine();
 
+        if (type.DeclaringType is not null)
+        {
+            sb.AppendLine($"**Nested in:** `{type.DeclaringType}`");
+            sb.AppendLine();
+        }
+
         if (!string.IsNullOrWhiteSpace(type.XmlDocSummary))
         {
             sb.AppendLine(type.XmlDocSummary);

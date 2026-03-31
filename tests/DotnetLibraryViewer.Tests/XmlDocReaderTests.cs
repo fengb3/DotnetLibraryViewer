@@ -87,4 +87,41 @@ public class XmlDocReaderTests
             File.Delete(tempFile);
         }
     }
+
+    [Fact]
+    public void GetDoc_NestedTypeDocId_DotNotation()
+    {
+        var xml = @"<?xml version=""1.0""?>
+<doc>
+  <members>
+    <member name=""T:TestLib.Outer.Inner"">
+      <summary>A nested type.</summary>
+    </member>
+    <member name=""M:TestLib.Outer.Inner.DoWork"">
+      <summary>Does work.</summary>
+    </member>
+  </members>
+</doc>";
+
+        var tempFile = Path.GetTempFileName();
+        try
+        {
+            File.WriteAllText(tempFile, xml);
+            var reader = XmlDocReader.Load(tempFile);
+            Assert.NotNull(reader);
+
+            // Doc IDs use dot notation for nested types (not +)
+            var typeDoc = reader.GetDoc("T:TestLib.Outer.Inner");
+            Assert.NotNull(typeDoc);
+            Assert.Equal("A nested type.", typeDoc.Summary);
+
+            var methodDoc = reader.GetDoc("M:TestLib.Outer.Inner.DoWork");
+            Assert.NotNull(methodDoc);
+            Assert.Equal("Does work.", methodDoc.Summary);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
 }

@@ -1,4 +1,5 @@
 using System.CommandLine;
+using System.Text;
 using DotnetLibraryViewer.Models;
 
 namespace DotnetLibraryViewer;
@@ -7,10 +8,13 @@ public static class Program
 {
     public static async Task<int> Main(string[] args)
     {
+        Console.OutputEncoding = Encoding.UTF8;
+
         // Shared options (applied to each subcommand individually to avoid duplicate usage display)
         var versionOption = new Option<string?>("--package-version") { Description = "Package version (NuGet mode)" };
         var frameworkOption = new Option<string?>("--framework") { Description = "Target framework moniker (e.g. net8.0)" };
         var xmlOption = new Option<string?>("--xml") { Description = "Path to XML documentation file (local DLL mode)" };
+        var namespaceOption = new Option<string?>("--namespace", "-n") { Description = "Filter by namespace (wildcard supported)" };
 
         var rootCommand = new RootCommand("dlv - .NET Library Viewer: inspect NuGet packages and DLLs");
 
@@ -24,7 +28,8 @@ public static class Program
             versionOption,
             frameworkOption,
             outputOption,
-            xmlOption
+            xmlOption,
+            namespaceOption
         };
 
         docCommand.SetAction(async (parseResult, ct) =>
@@ -34,8 +39,20 @@ public static class Program
             var framework = parseResult.GetValue(frameworkOption);
             var output = parseResult.GetValue(outputOption);
             var xml = parseResult.GetValue(xmlOption);
+            var nsFilter = parseResult.GetValue(namespaceOption);
 
             var assembly = await ResolveAndReadAsync(package, version, framework, xml, ct);
+
+            if (nsFilter is not null)
+            {
+                assembly = assembly with
+                {
+                    Types = assembly.Types
+                        .Where(t => t.Namespace is not null && WildcardMatcher.IsMatch(t.Namespace, nsFilter))
+                        .ToList()
+                };
+            }
+
             var markdown = MarkdownGenerator.Generate(assembly);
 
             if (output is not null)
@@ -61,7 +78,8 @@ public static class Program
             qtKeywordOption,
             versionOption,
             frameworkOption,
-            xmlOption
+            xmlOption,
+            namespaceOption
         };
 
         queryTypeCommand.SetAction(async (parseResult, ct) =>
@@ -71,12 +89,18 @@ public static class Program
             var version = parseResult.GetValue(versionOption);
             var framework = parseResult.GetValue(frameworkOption);
             var xml = parseResult.GetValue(xmlOption);
+            var nsFilter = parseResult.GetValue(namespaceOption);
 
             var assembly = await ResolveAndReadAsync(package, version, framework, xml, ct);
 
-            var matched = assembly.Types
+            var types = assembly.Types.AsEnumerable();
+            if (nsFilter is not null)
+                types = types.Where(t => t.Namespace is not null && WildcardMatcher.IsMatch(t.Namespace, nsFilter));
+
+            var matched = types
                 .Where(t => WildcardMatcher.IsMatch(t.Name, keyword)
-                         || WildcardMatcher.IsMatch(t.FullName, keyword))
+                         || WildcardMatcher.IsMatch(t.FullName, keyword)
+                         || WildcardMatcher.IsMatch(t.FullName.Replace('+', '.'), keyword))
                 .ToList();
 
             OutputFormatter.ListTypes(matched);
@@ -95,7 +119,8 @@ public static class Program
             qmTypeOption,
             versionOption,
             frameworkOption,
-            xmlOption
+            xmlOption,
+            namespaceOption
         };
 
         queryMemberCommand.SetAction(async (parseResult, ct) =>
@@ -106,15 +131,21 @@ public static class Program
             var version = parseResult.GetValue(versionOption);
             var framework = parseResult.GetValue(frameworkOption);
             var xml = parseResult.GetValue(xmlOption);
+            var nsFilter = parseResult.GetValue(namespaceOption);
 
             var assembly = await ResolveAndReadAsync(package, version, framework, xml, ct);
 
             var results = new List<(TypeInfo Type, MemberInfo Member)>();
             foreach (var type in assembly.Types)
             {
+                if (nsFilter is not null
+                    && (type.Namespace is null || !WildcardMatcher.IsMatch(type.Namespace, nsFilter)))
+                    continue;
+
                 if (typeFilter is not null
                     && !WildcardMatcher.IsMatch(type.Name, typeFilter)
-                    && !WildcardMatcher.IsMatch(type.FullName, typeFilter))
+                    && !WildcardMatcher.IsMatch(type.FullName, typeFilter)
+                    && !WildcardMatcher.IsMatch(type.FullName.Replace('+', '.'), typeFilter))
                     continue;
 
                 foreach (var member in type.Members)
@@ -143,7 +174,8 @@ public static class Program
             dMemberOption,
             versionOption,
             frameworkOption,
-            xmlOption
+            xmlOption,
+            namespaceOption
         };
 
         detailCommand.SetAction(async (parseResult, ct) =>
@@ -154,23 +186,43 @@ public static class Program
             var version = parseResult.GetValue(versionOption);
             var framework = parseResult.GetValue(frameworkOption);
             var xml = parseResult.GetValue(xmlOption);
+            var nsFilter = parseResult.GetValue(namespaceOption);
 
             var assembly = await ResolveAndReadAsync(package, version, framework, xml, ct);
 
-            var type = assembly.Types.FirstOrDefault(t =>
-                t.Name == typeName || t.FullName == typeName);
+            var candidateTypes = assembly.Types.AsEnumerable();
+            if (nsFilter is not null)
+                candidateTypes = candidateTypes.Where(t => t.Namespace is not null && WildcardMatcher.IsMatch(t.Namespace, nsFilter));
+
+            var type = candidateTypes.FirstOrDefault(t =>
+                t.Name == typeName || t.FullName == typeName || t.FullName.Replace('+', '.') == typeName);
 
             if (type is null)
             {
                 // Try wildcard match
-                type = assembly.Types.FirstOrDefault(t =>
+                type = candidateTypes.FirstOrDefault(t =>
                     WildcardMatcher.IsMatch(t.Name, typeName) ||
-                    WildcardMatcher.IsMatch(t.FullName, typeName));
+                    WildcardMatcher.IsMatch(t.FullName, typeName) ||
+                    WildcardMatcher.IsMatch(t.FullName.Replace('+', '.'), typeName));
             }
 
             if (type is null)
             {
                 Console.Error.WriteLine($"Type '{typeName}' not found.");
+
+                var suggestions = candidateTypes
+                    .Where(t => t.Name.Contains(typeName, StringComparison.OrdinalIgnoreCase)
+                             || t.FullName.Contains(typeName, StringComparison.OrdinalIgnoreCase))
+                    .Take(5)
+                    .ToList();
+
+                if (suggestions.Count > 0)
+                {
+                    Console.Error.WriteLine("Did you mean:");
+                    foreach (var s in suggestions)
+                        Console.Error.WriteLine($"  {s.FullName}");
+                }
+
                 return 1;
             }
 
