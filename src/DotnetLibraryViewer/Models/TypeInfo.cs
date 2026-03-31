@@ -24,5 +24,6 @@ public sealed record TypeInfo(
     IReadOnlyList<MemberInfo> Members,
     string? XmlDocSummary,
     IReadOnlyDictionary<string, string>? XmlDocTypeParameters = null,
-    string? DeclaringType = null
+    string? DeclaringType = null,
+    bool IsObsolete = false
 );

@@ -248,11 +248,55 @@ public static class Program
             return 0;
         });
 
+        // === compare-version subcommand ===
+        var cvPackageArg = new Argument<string>("package") { Description = "NuGet package name" };
+        var cvV1Option = new Option<string>("--version1", "-v1") { Description = "First version to compare", Required = true };
+        var cvV2Option = new Option<string>("--version2", "-v2") { Description = "Second version to compare", Required = true };
+
+        var compareVersionCommand = new Command("compare-version", "Compare API surface between two versions of a package")
+        {
+            cvPackageArg,
+            cvV1Option,
+            cvV2Option,
+            frameworkOption,
+            namespaceOption
+        };
+
+        compareVersionCommand.SetAction(async (parseResult, ct) =>
+        {
+            var package = parseResult.GetValue(cvPackageArg)!;
+            var version1 = parseResult.GetValue(cvV1Option)!;
+            var version2 = parseResult.GetValue(cvV2Option)!;
+            var framework = parseResult.GetValue(frameworkOption);
+            var nsFilter = parseResult.GetValue(namespaceOption);
+
+            if (package.EndsWith(".dll", StringComparison.OrdinalIgnoreCase) && File.Exists(package))
+            {
+                Console.Error.WriteLine("Error: compare-version requires a NuGet package name, not a DLL path.");
+                return 1;
+            }
+
+            Console.Error.WriteLine($"Resolving {package} v{version1}...");
+            var v1 = await ResolveAndReadAsync(package, version1, framework, null, ct);
+
+            Console.Error.WriteLine($"Resolving {package} v{version2}...");
+            var v2 = await ResolveAndReadAsync(package, version2, framework, null, ct);
+
+            var result = ApiComparer.Compare(v1, v2);
+
+            if (nsFilter is not null)
+                result = ApiComparer.FilterByNamespace(result, nsFilter);
+
+            OutputFormatter.WriteComparisonResult(result);
+            return 0;
+        });
+
         // Add subcommands to root
         rootCommand.Subcommands.Add(docCommand);
         rootCommand.Subcommands.Add(queryTypeCommand);
         rootCommand.Subcommands.Add(queryMemberCommand);
         rootCommand.Subcommands.Add(detailCommand);
+        rootCommand.Subcommands.Add(compareVersionCommand);
 
         return await rootCommand.Parse(args).InvokeAsync();
     }

@@ -102,6 +102,7 @@ public static class AssemblyReader
         var isStatic = isSealed && isAbstract;
         isAbstract = isAbstract && !isStatic;
         isSealed = isSealed && !isStatic;
+        var isObsolete = HasObsoleteAttribute(reader, typeDef.GetCustomAttributes());
 
         var genericParams = new List<string>();
         foreach (var gpHandle in typeDef.GetGenericParameters())
@@ -139,7 +140,8 @@ public static class AssemblyReader
             Interfaces: interfaces,
             Members: members,
             XmlDocSummary: null,
-            DeclaringType: declaringType
+            DeclaringType: declaringType,
+            IsObsolete: isObsolete
         );
     }
 
@@ -219,6 +221,12 @@ public static class AssemblyReader
             if (accessibility != Accessibility.Public && accessibility != Accessibility.Protected)
                 continue;
 
+            var isObsolete = false;
+            if (!accessors.Getter.IsNil)
+                isObsolete = HasObsoleteAttribute(reader, reader.GetMethodDefinition(accessors.Getter).GetCustomAttributes());
+            if (!isObsolete && !accessors.Setter.IsNil)
+                isObsolete = HasObsoleteAttribute(reader, reader.GetMethodDefinition(accessors.Setter).GetCustomAttributes());
+
             var propTypeName = signature.ReturnType;
 
             // Build doc ID for indexer params
@@ -243,7 +251,8 @@ public static class AssemblyReader
                 IsAbstract: false,
                 Parameters: [],
                 ReturnType: propTypeName,
-                XmlDocSummary: null
+                XmlDocSummary: null,
+                IsObsolete: isObsolete
             );
         }
     }
@@ -263,6 +272,7 @@ public static class AssemblyReader
             var isStatic = (methodDef.Attributes & SR.MethodAttributes.Static) != 0;
             var isVirtual = (methodDef.Attributes & SR.MethodAttributes.Virtual) != 0;
             var isAbstract = (methodDef.Attributes & SR.MethodAttributes.Abstract) != 0;
+            var isObsolete = HasObsoleteAttribute(reader, methodDef.GetCustomAttributes());
 
             var signature = methodDef.DecodeSignature(sigProvider, null);
             var returnType = signature.ReturnType;
@@ -328,7 +338,8 @@ public static class AssemblyReader
                 IsAbstract: isAbstract,
                 Parameters: parameters,
                 ReturnType: returnType,
-                XmlDocSummary: null
+                XmlDocSummary: null,
+                IsObsolete: isObsolete
             );
         }
     }
@@ -349,6 +360,7 @@ public static class AssemblyReader
             var isStatic = (fieldDef.Attributes & SR.FieldAttributes.Static) != 0;
             var fieldType = fieldDef.DecodeSignature(new DisplaySignatureProvider(), null);
             var docId = $"F:{fullTypeName}.{name}";
+            var isObsolete = HasObsoleteAttribute(reader, fieldDef.GetCustomAttributes());
 
             yield return new MemberInfo(
                 Name: name,
@@ -362,7 +374,8 @@ public static class AssemblyReader
                 IsAbstract: false,
                 Parameters: [],
                 ReturnType: fieldType,
-                XmlDocSummary: null
+                XmlDocSummary: null,
+                IsObsolete: isObsolete
             );
         }
     }
@@ -375,6 +388,7 @@ public static class AssemblyReader
             var name = reader.GetString(eventDef.Name);
             var eventType = ResolveEntityHandle(reader, eventDef.Type) ?? "?";
             var docId = $"E:{fullTypeName}.{name}";
+            var isObsolete = HasObsoleteAttribute(reader, eventDef.GetCustomAttributes());
 
             yield return new MemberInfo(
                 Name: name,
@@ -388,7 +402,8 @@ public static class AssemblyReader
                 IsAbstract: false,
                 Parameters: [],
                 ReturnType: eventType,
-                XmlDocSummary: null
+                XmlDocSummary: null,
+                IsObsolete: isObsolete
             );
         }
     }
@@ -603,6 +618,36 @@ public static class AssemblyReader
 
         var (parentName, parentNs, _) = GetDisplayNameParts(reader, declaringHandle);
         return ($"{parentName}.{name}", parentNs, parentName);
+    }
+
+    private static bool HasObsoleteAttribute(MetadataReader reader, CustomAttributeHandleCollection attributes)
+    {
+        foreach (var attrHandle in attributes)
+        {
+            var attr = reader.GetCustomAttribute(attrHandle);
+            string? attrTypeName = attr.Constructor.Kind switch
+            {
+                HandleKind.MemberReference => GetAttributeTypeName(reader, (MemberReferenceHandle)attr.Constructor),
+                HandleKind.MethodDefinition => GetAttributeTypeName(reader, (MethodDefinitionHandle)attr.Constructor),
+                _ => null
+            };
+
+            if (attrTypeName == "System.ObsoleteAttribute")
+                return true;
+        }
+        return false;
+    }
+
+    private static string? GetAttributeTypeName(MetadataReader reader, MemberReferenceHandle handle)
+    {
+        var parent = reader.GetMemberReference(handle).Parent;
+        return ResolveEntityHandle(reader, parent);
+    }
+
+    private static string? GetAttributeTypeName(MetadataReader reader, MethodDefinitionHandle handle)
+    {
+        var declaringType = reader.GetMethodDefinition(handle).GetDeclaringType();
+        return ResolveEntityHandle(reader, declaringType);
     }
 
     private static string StripGenericArity(string name)
