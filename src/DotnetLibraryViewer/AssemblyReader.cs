@@ -64,14 +64,21 @@ public static class AssemblyReader
             {
                 var memberDoc = xmlDoc.GetDoc(member.DocId);
                 mergedMembers.Add(memberDoc is not null
-                    ? member with { XmlDocSummary = memberDoc.Summary }
+                    ? member with
+                    {
+                        XmlDocSummary = memberDoc.Summary,
+                        XmlDocParameters = memberDoc.Parameters,
+                        XmlDocTypeParameters = memberDoc.TypeParameters,
+                        XmlDocReturns = memberDoc.Returns
+                    }
                     : member);
             }
 
             typesList[i] = type with
             {
                 Members = mergedMembers,
-                XmlDocSummary = typeDoc?.Summary
+                XmlDocSummary = typeDoc?.Summary,
+                XmlDocTypeParameters = typeDoc?.TypeParameters
             };
         }
     }

@@ -22,5 +22,6 @@ public sealed record TypeInfo(
     IReadOnlyList<string> GenericParameterNames,
     IReadOnlyList<string> Interfaces,
     IReadOnlyList<MemberInfo> Members,
-    string? XmlDocSummary
+    string? XmlDocSummary,
+    IReadOnlyDictionary<string, string>? XmlDocTypeParameters = null
 );

@@ -23,7 +23,9 @@ dotnet publish src/DotnetLibraryViewer -r win-x64 -c Release  # AOT publish (req
   - `DocIdSignatureProvider` — decodes to fully-qualified XML doc ID format (`System.Int32`, with `{...}` for generics)
 - **XmlDocReader.cs** — Parses XML doc files via `XDocument`, builds a `Dictionary<string, MemberDoc>` keyed by doc ID strings (`T:`, `M:`, `P:`, `F:`, `E:` prefixes).
 - **MarkdownGenerator.cs** — Pure function converting `AssemblyInfo` model into Markdown with tables per member kind, grouped by namespace.
-- **Program.cs** — `System.CommandLine` 2.0 setup. Single positional argument (package name or DLL path) with options.
+- **Program.cs** — `System.CommandLine` 2.0 setup. Root command is argument-free; all functionality lives in subcommands.
+- **WildcardMatcher.cs** — Converts `*`/`?` wildcard patterns to regex for filtering. Case-insensitive.
+- **OutputFormatter.cs** — Console output formatting for query/detail subcommands.
 
 **Key constraint:** No runtime `System.Reflection` — AOT compatibility requires `System.Reflection.Metadata` exclusively. Uses `using SR = System.Reflection` alias to access `TypeAttributes`, `MethodAttributes`, `FieldAttributes` enums without conflicting with the `Models` namespace.
 
@@ -31,10 +33,26 @@ dotnet publish src/DotnetLibraryViewer -r win-x64 -c Release  # AOT publish (req
 
 Immutable `sealed record` types: `AssemblyInfo`, `TypeInfo`, `MemberInfo`, `ParameterInfo`, plus enums `TypeKind`, `MemberKind`, `Accessibility`. The `TypeInfo.Members` list is cast to `List<TypeInfo>` in `MergeXmlDocs` for mutation during XML doc merging.
 
-## CLI Options
+## CLI Commands
 
 ```
-dlv <package> [--package-version <ver>] [--framework <tfm>] [--output <file>] [--xml <path>]
+dlv doc <package> [options]                                  # Full Markdown documentation
+dlv query-type <package> -k <pattern> [options]              # List types matching wildcard
+dlv query-member <package> -k <pattern> [-t <type>] [options] # List members matching wildcard
+dlv detail <package> -t <type> [-m <member>] [options]       # Show full type/member details
 ```
+
+Shared options (on every subcommand): `--package-version`, `--framework`, `--xml`
 
 Auto-detects NuGet vs local DLL mode based on whether input ends with `.dll` and the file exists.
+
+## Adding New Subcommands
+
+Follow the pattern established in `Program.cs`:
+
+1. **Define** a new `Command` with its own `Argument<string>("package")` + shared options (`versionOption`, `frameworkOption`, `xmlOption`). Each subcommand owns its own package argument — the root command has none.
+2. **Resolve** the package by calling the shared `ResolveAndReadAsync()` helper, which returns `AssemblyInfo`.
+3. **Filter/query** using `WildcardMatcher.IsMatch()` for user-facing pattern matching.
+4. **Format output** by adding methods to `OutputFormatter.cs` — never write formatting logic inline in `Program.cs`.
+5. **Register** the command via `rootCommand.Subcommands.Add(...)`.
+6. **Naming**: kebab-case for command names (`query-type`, `query-member`); short aliases with single dash (`-k`, `-t`, `-m`).

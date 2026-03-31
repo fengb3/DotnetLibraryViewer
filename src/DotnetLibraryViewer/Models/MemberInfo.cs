@@ -39,5 +39,8 @@ public sealed record MemberInfo(
     bool IsAbstract,
     IReadOnlyList<ParameterInfo> Parameters,
     string? ReturnType,
-    string? XmlDocSummary
+    string? XmlDocSummary,
+    IReadOnlyDictionary<string, string>? XmlDocParameters = null,
+    IReadOnlyDictionary<string, string>? XmlDocTypeParameters = null,
+    string? XmlDocReturns = null
 );
