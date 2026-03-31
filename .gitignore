@@ -481,3 +481,9 @@ $RECYCLE.BIN/
 # Vim temporary swap files
 *.swp
 .claude/settings.local.json
+
+# Skill eval workspace
+skill-workspace/
+
+# Test libraries created by evals
+lib/
