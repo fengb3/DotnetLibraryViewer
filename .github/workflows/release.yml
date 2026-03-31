@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 jobs:
-  release:
+  build-aot:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -44,8 +44,35 @@ jobs:
           name: dlv-${{ matrix.rid }}
           path: ./artifacts/dlv${{ matrix.ext }}
 
+  publish-nuget:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Extract version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+
+      - name: Pack NuGet tool
+        run: dotnet pack src/DotnetLibraryViewer -c Release -p:PackageVersion=${{ steps.version.outputs.VERSION }} -o ./nupkg
+
+      - name: Push to NuGet
+        run: dotnet nuget push ./nupkg/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
+
+      - name: Upload nupkg artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuget-package
+          path: ./nupkg/*.nupkg
+
   create-release:
-    needs: release
+    needs: [build-aot, publish-nuget]
     runs-on: ubuntu-latest
 
     steps:

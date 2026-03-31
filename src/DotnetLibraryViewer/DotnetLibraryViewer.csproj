@@ -8,6 +8,16 @@
     <PublishAot>true</PublishAot>
     <AssemblyName>dlv</AssemblyName>
     <InvariantGlobalization>true</InvariantGlobalization>
+
+    <!-- NuGet Tool Package -->
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>dlv</ToolCommandName>
+    <PackageId>DotnetLibraryViewer</PackageId>
+    <Version>1.0.0</Version>
+    <Description>A .NET CLI tool that reads assembly metadata and outputs Markdown documentation for NuGet packages or local DLLs.</Description>
+    <PackageTags>dotnet;cli;documentation;nuget;assembly;reflection</PackageTags>
+    <RepositoryUrl>https://github.com/fengb3/DotnetLibraryViewer</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
   </PropertyGroup>
 
   <ItemGroup>
