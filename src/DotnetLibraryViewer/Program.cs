@@ -6,6 +6,22 @@ namespace DotnetLibraryViewer;
 
 public static class Program
 {
+    private static string WithExamples(string description, params (string desc, string cmd)[] examples)
+    {
+        var sb = new StringBuilder(description);
+        sb.AppendLine();
+        sb.AppendLine();
+        sb.Append("Examples:");
+        foreach (var (desc, cmd) in examples)
+        {
+            sb.AppendLine();
+            sb.Append("  # ").Append(desc);
+            sb.AppendLine();
+            sb.Append("  ").Append(cmd);
+        }
+        return sb.ToString();
+    }
+
     public static async Task<int> Main(string[] args)
     {
         Console.OutputEncoding = Encoding.UTF8;
@@ -22,7 +38,11 @@ public static class Program
         var docPackageArg = new Argument<string>("package") { Description = "NuGet package name or path to a DLL file" };
         var outputOption = new Option<string?>("--output") { Description = "Output markdown file path" };
 
-        var docCommand = new Command("doc", "Generate full Markdown documentation for a package")
+        var docCommand = new Command("doc", WithExamples(
+            "Generate full Markdown documentation for a package",
+            ("Print docs to console", "dlv doc Newtonsoft.Json"),
+            ("Save to file", "dlv doc ./MyLib.dll --output docs.md"),
+            ("Filter by namespace", "dlv doc Serilog --package-version 3.1.1 -n Serilog*")))
         {
             docPackageArg,
             versionOption,
@@ -72,7 +92,10 @@ public static class Program
         var qtPackageArg = new Argument<string>("package") { Description = "NuGet package name or path to a DLL file" };
         var qtKeywordOption = new Option<string>("--keyword", "-k") { Description = "Wildcard pattern to match type names (* and ? supported)", Required = true };
 
-        var queryTypeCommand = new Command("query-type", "List types matching a keyword pattern")
+        var queryTypeCommand = new Command("query-type", WithExamples(
+            "List types matching a keyword pattern",
+            ("Wildcard search for types", "dlv query-type Newtonsoft.Json -k *Serializer*"),
+            ("Filter by namespace", "dlv query-type System.CommandLine -k Command -n System.CommandLine*")))
         {
             qtPackageArg,
             qtKeywordOption,
@@ -112,7 +135,10 @@ public static class Program
         var qmKeywordOption = new Option<string>("--keyword", "-k") { Description = "Wildcard pattern to match member names (* and ? supported)", Required = true };
         var qmTypeOption = new Option<string?>("--type", "-t") { Description = "Limit search to a specific type name (wildcard supported)" };
 
-        var queryMemberCommand = new Command("query-member", "List members matching a keyword pattern")
+        var queryMemberCommand = new Command("query-member", WithExamples(
+            "List members matching a keyword pattern",
+            ("Search members across all types", "dlv query-member Newtonsoft.Json -k *Serialize*"),
+            ("Limit to a specific type", "dlv query-member System.CommandLine -k *Parse* -t Command")))
         {
             qmPackageArg,
             qmKeywordOption,
@@ -167,7 +193,11 @@ public static class Program
         var dTypeOption = new Option<string>("--type", "-t") { Description = "Type name to inspect", Required = true };
         var dMemberOption = new Option<string?>("--member", "-m") { Description = "Member name to inspect (optional)" };
 
-        var detailCommand = new Command("detail", "Show detailed information about a type or member")
+        var detailCommand = new Command("detail", WithExamples(
+            "Show detailed information about a type or member",
+            ("Inspect a type", "dlv detail Newtonsoft.Json -t JsonSerializer"),
+            ("Inspect a specific member", "dlv detail Newtonsoft.Json -t JsonSerializer -m Serialize"),
+            ("Works with local DLLs", "dlv detail ./MyLib.dll -t MyNamespace.MyClass")))
         {
             dPackageArg,
             dTypeOption,
@@ -253,7 +283,10 @@ public static class Program
         var cvV1Option = new Option<string>("--version1", "-v1") { Description = "First version to compare", Required = true };
         var cvV2Option = new Option<string>("--version2", "-v2") { Description = "Second version to compare", Required = true };
 
-        var compareVersionCommand = new Command("compare-version", "Compare API surface between two versions of a package")
+        var compareVersionCommand = new Command("compare-version", WithExamples(
+            "Compare API surface between two versions of a package",
+            ("Compare two versions", "dlv compare-version Serilog -v1 2.12.0 -v2 3.1.1"),
+            ("Filter diff by namespace", "dlv compare-version Newtonsoft.Json -v1 12.0.3 -v2 13.0.3 -n Newtonsoft.Json*")))
         {
             cvPackageArg,
             cvV1Option,

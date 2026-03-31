@@ -78,11 +78,18 @@ public static class PackageResolver
             CreateNoWindow = true
         }) ?? throw new InvalidOperationException("Failed to start dotnet process");
 
+        // Read both streams concurrently to avoid deadlock from buffer saturation
+        var stdoutTask = process.StandardOutput.ReadToEndAsync(ct);
+        var stderrTask = process.StandardError.ReadToEndAsync(ct);
         await process.WaitForExitAsync(ct);
+
         if (process.ExitCode != 0)
         {
-            var error = await process.StandardError.ReadToEndAsync(ct);
-            throw new InvalidOperationException($"dotnet failed: {error}");
+            var stdout = await stdoutTask;
+            var stderr = await stderrTask;
+            var output = string.IsNullOrEmpty(stderr) ? stdout : $"{stderr}\n{stdout}";
+            throw new InvalidOperationException(
+                $"dotnet {arguments} failed (exit code {process.ExitCode}):\n{output}");
         }
     }
 
