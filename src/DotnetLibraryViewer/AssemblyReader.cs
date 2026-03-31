@@ -21,20 +21,9 @@ public static class AssemblyReader
         var version = assemblyDef.Version.ToString();
 
         var types = new List<TypeInfo>();
-        var nestedTypeBuffer = new HashSet<TypeDefinitionHandle>();
 
         foreach (var typeHandle in reader.TypeDefinitions)
         {
-            var typeDef = reader.GetTypeDefinition(typeHandle);
-            if (!typeDef.GetDeclaringType().IsNil)
-                nestedTypeBuffer.Add(typeHandle);
-        }
-
-        foreach (var typeHandle in reader.TypeDefinitions)
-        {
-            if (nestedTypeBuffer.Contains(typeHandle))
-                continue;
-
             var typeDef = reader.GetTypeDefinition(typeHandle);
             var typeName = reader.GetString(typeDef.Name);
 
@@ -45,7 +34,7 @@ public static class AssemblyReader
             if (visibility != Accessibility.Public && visibility != Accessibility.Protected)
                 continue;
 
-            types.Add(ReadTypeInfo(reader, typeDef, typeName));
+            types.Add(ReadTypeInfo(reader, typeDef, typeName, typeHandle));
         }
 
         return new AssemblyInfo(assemblyName, version, null, types);
@@ -57,7 +46,7 @@ public static class AssemblyReader
         for (int i = 0; i < typesList.Count; i++)
         {
             var type = typesList[i];
-            var typeDoc = xmlDoc.GetDoc($"T:{type.FullName}");
+            var typeDoc = xmlDoc.GetDoc($"T:{type.FullName.Replace('+', '.')}");
 
             var mergedMembers = new List<MemberInfo>();
             foreach (var member in type.Members)
@@ -83,10 +72,28 @@ public static class AssemblyReader
         }
     }
 
-    private static TypeInfo ReadTypeInfo(MetadataReader reader, TypeDefinition typeDef, string typeName)
+    private static (string fullName, string? ns, string? declaringType) ResolveTypeName(
+        MetadataReader reader, TypeDefinitionHandle handle)
     {
-        var ns = reader.GetString(typeDef.Namespace);
-        var fullName = string.IsNullOrEmpty(ns) ? typeName : $"{ns}.{typeName}";
+        var typeDef = reader.GetTypeDefinition(handle);
+        var name = reader.GetString(typeDef.Name);
+        var declaringHandle = typeDef.GetDeclaringType();
+
+        if (declaringHandle.IsNil)
+        {
+            var ns = reader.GetString(typeDef.Namespace);
+            var fullName = string.IsNullOrEmpty(ns) ? name : $"{ns}.{name}";
+            return (fullName, string.IsNullOrEmpty(ns) ? null : ns, null);
+        }
+
+        var (parentFullName, parentNs, _) = ResolveTypeName(reader, declaringHandle);
+        return ($"{parentFullName}+{name}", parentNs, parentFullName);
+    }
+
+    private static TypeInfo ReadTypeInfo(MetadataReader reader, TypeDefinition typeDef, string typeName, TypeDefinitionHandle typeHandle)
+    {
+        var (fullName, ns, declaringType) = ResolveTypeName(reader, typeHandle);
+        var docIdTypeName = fullName.Replace('+', '.');
 
         var kind = DetermineTypeKind(reader, typeDef);
         var baseType = GetBaseTypeName(reader, typeDef);
@@ -113,10 +120,10 @@ public static class AssemblyReader
         }
 
         var members = new List<MemberInfo>();
-        members.AddRange(ReadProperties(reader, typeDef, fullName));
-        members.AddRange(ReadMethods(reader, typeDef, fullName));
-        members.AddRange(ReadFields(reader, typeDef, fullName, kind));
-        members.AddRange(ReadEvents(reader, typeDef, fullName));
+        members.AddRange(ReadProperties(reader, typeDef, docIdTypeName));
+        members.AddRange(ReadMethods(reader, typeDef, docIdTypeName));
+        members.AddRange(ReadFields(reader, typeDef, docIdTypeName, kind));
+        members.AddRange(ReadEvents(reader, typeDef, docIdTypeName));
 
         return new TypeInfo(
             Name: typeName,
@@ -131,7 +138,8 @@ public static class AssemblyReader
             GenericParameterNames: genericParams,
             Interfaces: interfaces,
             Members: members,
-            XmlDocSummary: null
+            XmlDocSummary: null,
+            DeclaringType: declaringType
         );
     }
 
@@ -285,7 +293,9 @@ public static class AssemblyReader
             var isCtor = name == ".ctor" || name == ".cctor";
             var kind = isCtor ? MemberKind.Constructor : MemberKind.Method;
             var displayName = isCtor
-                ? fullTypeName.Contains('.') ? fullTypeName[(fullTypeName.LastIndexOf('.') + 1)..] : fullTypeName
+                ? fullTypeName.Contains('.') || fullTypeName.Contains('+')
+                    ? fullTypeName[(new[] { fullTypeName.LastIndexOf('.'), fullTypeName.LastIndexOf('+') }.Max() + 1)..]
+                    : fullTypeName
                 : name;
 
             var docId = BuildMethodDocId(reader, methodDef, fullTypeName, name);
@@ -493,10 +503,8 @@ public static class AssemblyReader
 
         public string GetTypeFromDefinition(MetadataReader reader, TypeDefinitionHandle handle, byte rawTypeKind)
         {
-            var typeDef = reader.GetTypeDefinition(handle);
-            var ns = reader.GetString(typeDef.Namespace);
-            var name = StripGenericArity(reader.GetString(typeDef.Name));
-            return string.IsNullOrEmpty(ns) ? name : $"{ns}.{name}";
+            var (displayName, _, _) = GetDisplayNameParts(reader, handle);
+            return displayName;
         }
 
         public string GetTypeFromReference(MetadataReader reader, TypeReferenceHandle handle, byte rawTypeKind)
@@ -551,10 +559,8 @@ public static class AssemblyReader
 
         public string GetTypeFromDefinition(MetadataReader reader, TypeDefinitionHandle handle, byte rawTypeKind)
         {
-            var typeDef = reader.GetTypeDefinition(handle);
-            var ns = reader.GetString(typeDef.Namespace);
-            var name = reader.GetString(typeDef.Name);
-            return string.IsNullOrEmpty(ns) ? name : $"{ns}.{name}";
+            var (displayName, _, _) = GetDisplayNameParts(reader, handle);
+            return displayName;
         }
 
         public string GetTypeFromReference(MetadataReader reader, TypeReferenceHandle handle, byte rawTypeKind)
@@ -579,6 +585,24 @@ public static class AssemblyReader
         public string GetFunctionPointerType(MethodSignature<string> signature) => "System.IntPtr";
         public string GetTypeFromSpecification(MetadataReader reader, object? genericContext, TypeSpecificationHandle handle, byte rawTypeKind)
             => reader.GetTypeSpecification(handle).DecodeSignature(this, genericContext);
+    }
+
+    private static (string displayName, string? ns, string? declaringType) GetDisplayNameParts(
+        MetadataReader reader, TypeDefinitionHandle handle)
+    {
+        var typeDef = reader.GetTypeDefinition(handle);
+        var name = StripGenericArity(reader.GetString(typeDef.Name));
+        var declaringHandle = typeDef.GetDeclaringType();
+
+        if (declaringHandle.IsNil)
+        {
+            var ns = reader.GetString(typeDef.Namespace);
+            var fullName = string.IsNullOrEmpty(ns) ? name : $"{ns}.{name}";
+            return (fullName, string.IsNullOrEmpty(ns) ? null : ns, null);
+        }
+
+        var (parentName, parentNs, _) = GetDisplayNameParts(reader, declaringHandle);
+        return ($"{parentName}.{name}", parentNs, parentName);
     }
 
     private static string StripGenericArity(string name)

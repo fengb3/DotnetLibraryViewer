@@ -24,6 +24,8 @@ public static class OutputFormatter
             var modifiers = BuildTypeModifiers(type);
             Console.WriteLine($"  {modifiers}{kind} {type.Name}{generic}");
             Console.WriteLine($"    Namespace: {ns}");
+            if (type.DeclaringType is not null)
+                Console.WriteLine($"    Nested in: {type.DeclaringType}");
             if (type.BaseType is not null && type.BaseType is not "System.Object" and not "System.ValueType" and not "System.Enum")
                 Console.WriteLine($"    Base: {type.BaseType}");
             if (!string.IsNullOrWhiteSpace(type.XmlDocSummary))
@@ -46,11 +48,11 @@ public static class OutputFormatter
         string? lastType = null;
         foreach (var (type, member) in list)
         {
-            if (type.Name != lastType)
+            if (type.FullName != lastType)
             {
                 if (lastType is not null) Console.WriteLine();
-                Console.WriteLine($"  {type.Name}:");
-                lastType = type.Name;
+                Console.WriteLine($"  {type.FullName}:");
+                lastType = type.FullName;
             }
 
             var kind = member.Kind.ToString().ToLowerInvariant();
@@ -74,6 +76,9 @@ public static class OutputFormatter
         Console.WriteLine($"{modifiers}{kind} {type.Name}{generic}");
         Console.WriteLine($"  Full Name: {type.FullName}");
         Console.WriteLine($"  Namespace: {type.Namespace ?? "(Global)"}");
+
+        if (type.DeclaringType is not null)
+            Console.WriteLine($"  Declaring Type: {type.DeclaringType}");
 
         if (type.BaseType is not null && type.BaseType is not "System.Object" and not "System.ValueType" and not "System.Enum")
             Console.WriteLine($"  Base Type: {type.BaseType}");

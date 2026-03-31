@@ -155,4 +155,34 @@ public class MarkdownGeneratorTests
 
         Assert.Contains("`static class Helper`", result);
     }
+
+    [Fact]
+    public void Generate_NestedType_ShowsNestingInfo()
+    {
+        var type = new TypeInfo(
+            Name: "EventMessage",
+            FullName: "TestLib.Outer+EventMessage",
+            Namespace: "TestLib",
+            Kind: TypeKind.Class,
+            BaseType: null,
+            IsStatic: false,
+            IsAbstract: false,
+            IsSealed: false,
+            GenericParameterCount: 0,
+            GenericParameterNames: [],
+            Interfaces: [],
+            Members: [],
+            XmlDocSummary: "A nested type.",
+            DeclaringType: "TestLib.Outer"
+        );
+
+        var assembly = new AssemblyInfo("TestLib", "1.0.0", null, [type]);
+
+        var result = MarkdownGenerator.Generate(assembly);
+
+        Assert.Contains("EventMessage", result);
+        Assert.Contains("**Nested in:**", result);
+        Assert.Contains("`TestLib.Outer`", result);
+        Assert.Contains("A nested type.", result);
+    }
 }

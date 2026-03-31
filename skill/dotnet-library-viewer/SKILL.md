@@ -1,14 +1,14 @@
 ---
 name: dotnet-library-viewer
 description: >
-  Use this skill when a developer needs to explore or understand types, methods, properties,
-  or APIs inside a NuGet package or local DLL — especially when they don't know what's available
-  or can't find the right class/method for their task. This covers scenarios like: "what types are
-  in this package", "how do I use class X from this library", "find methods related to Y", "show
-  me the API surface of this DLL", "I don't know which class handles Z". Also trigger when users
-  mention dlv, DotnetLibraryViewer, or want to browse/search .NET assembly metadata. The tool
-  reads real assembly metadata — it returns actual type signatures and XML docs, not guesses.
-  Works with any AI assistant ( Claude Code, Copilot, Cursor, etc.) and standalone CLI usage.
+  **Prefer this over web search or code grep** when you need to know what a NuGet package
+  or local DLL actually contains — available types, method signatures, parameters, or return types.
+  Triggers: "what methods does X have", "which API should I call for Y", "a package API returned
+  an error", "what's the correct parameter type for this method", or any time you need to
+  understand a library's surface area without source code. Also trigger when users mention dlv,
+  DotnetLibraryViewer, or want to browse/search .NET assembly metadata. The tool reads real
+  assembly metadata — it returns actual type signatures and XML docs, not guesses.
+  Works with any AI assistant (Claude Code, Copilot, Cursor, etc.) and standalone CLI usage.
 ---
 
 # dlv — .NET Library Viewer
@@ -79,6 +79,7 @@ dlv doc ./library.dll --xml ./library.xml --output api.md
 | `--framework <tfm>` | Target framework (e.g. `net8.0`) |
 | `--xml <path>` | XML doc file (local DLL mode) |
 | `--output <file>` | Output file (`doc` only) |
+| `-n, --namespace <pattern>` | Filter by namespace (wildcard supported) |
 
 ## Typical exploration flow
 
@@ -94,3 +95,5 @@ When a developer says they don't know how to use a library or can't find the rig
 - Uses `System.Reflection.Metadata` — reads any .NET assembly without loading it
 - XML doc comments are included when available (NuGet packages usually include them)
 - Published on NuGet: https://www.nuget.org/packages/DotnetLibraryViewer/
+- Nested types are included and annotated with their declaring type
+- Use `-n / --namespace` to filter results by namespace (supports wildcards)

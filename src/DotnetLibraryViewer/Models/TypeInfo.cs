@@ -23,5 +23,6 @@ public sealed record TypeInfo(
     IReadOnlyList<string> Interfaces,
     IReadOnlyList<MemberInfo> Members,
     string? XmlDocSummary,
-    IReadOnlyDictionary<string, string>? XmlDocTypeParameters = null
+    IReadOnlyDictionary<string, string>? XmlDocTypeParameters = null,
+    string? DeclaringType = null
 );
