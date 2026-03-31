@@ -45,16 +45,16 @@ jobs:
         include:
           - os: windows-latest
             rid: win-x64
-            ext: .exe
+            ext: '-win-x64.exe'
           - os: ubuntu-latest
             rid: linux-x64
-            ext: ''
+            ext: '-linux-x64'
           - os: macos-latest
             rid: osx-x64
-            ext: ''
+            ext: '-osx-x64'
           - os: macos-latest
             rid: osx-arm64
-            ext: ''
+            ext: '-osx-arm64'
 
     steps:
       - uses: actions/checkout@v4
