@@ -11,7 +11,7 @@
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>dotnet-lib-view</ToolCommandName>
     <PackageId>DotnetLibraryViewer</PackageId>
-    <Version>1.2.1</Version>
+    <Version>1.2.2</Version>
     <Description>A .NET CLI tool that reads assembly metadata and outputs Markdown documentation for NuGet packages or local DLLs.</Description>
     <PackageTags>dotnet;cli;documentation;nuget;assembly;reflection;LLm;agent</PackageTags>
     <RepositoryUrl>https://github.com/fengb3/DotnetLibraryViewer</RepositoryUrl>
