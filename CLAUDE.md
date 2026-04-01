@@ -6,10 +6,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 dotnet build                              # Build solution
-dotnet test                               # Run all tests
+dotnet test                               # Run all tests (xUnit)
+dotnet test --filter "FullyQualifiedName~WildcardMatcherTests"  # Run single test class
 dotnet run --project src/DotnetLibraryViewer -- --help  # Show CLI help
 dotnet publish src/DotnetLibraryViewer -r win-x64 -c Release  # AOT publish (requires MSVC)
 ```
+
+**Release:** bump `<Version>` in `DotnetLibraryViewer.csproj` and merge to main — the CI workflow auto-publishes to NuGet and creates a GitHub release with AOT binaries for win-x64, linux-x64, osx-x64, osx-arm64.
 
 ## Architecture
 
@@ -44,7 +47,7 @@ dotnet lib-view detail <package> -t <type> [-m <member>] [options]       # Show 
 dotnet lib-view compare-version <package> -v1 <ver> -v2 <ver> [options]  # Compare API surface between versions
 ```
 
-Shared options (on every subcommand): `--package-version`, `--framework`, `--xml`, `-n`/`--namespace`
+Shared options on most subcommands: `--package-version`, `--framework`, `--xml`, `-n`/`--namespace`. Exceptions: `compare-version` uses `-v1`/`-v2` instead of `--package-version` and omits `--xml`; `doc` adds `--output`.
 
 Auto-detects NuGet vs local DLL mode based on whether input ends with `.dll` and the file exists.
 

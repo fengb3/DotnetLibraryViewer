@@ -1,0 +1,43 @@
+name: Release Skill
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'skill/dotnet-library-viewer/**'
+
+permissions:
+  contents: write
+
+jobs:
+  package-skill:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Get skill version from SKILL.md
+        id: version
+        run: |
+          COMMIT_COUNT=$(git rev-list --count HEAD)
+          echo "version=1.0.${COMMIT_COUNT}" >> $GITHUB_OUTPUT
+
+      - name: Package .skill file
+        run: |
+          cd skill/dotnet-library-viewer
+          zip -r ../../dotnet-library-viewer.skill .
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dotnet-library-viewer-skill
+          path: dotnet-library-viewer.skill
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: skill-v${{ steps.version.outputs.version }}
+          generate_release_notes: true
+          files: dotnet-library-viewer.skill
