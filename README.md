@@ -1,6 +1,6 @@
 [English](README.md) | [简体中文](README.zh-CN.md)
 
-# dlv - .NET Library Viewer
+.NET Library Viewer
 
 [![NuGet](https://img.shields.io/nuget/v/DotnetLibraryViewer.svg)](https://www.nuget.org/packages/DotnetLibraryViewer/)
 [![NuGet Downloads](https://img.shields.io/nuget/dt/DotnetLibraryViewer.svg)](https://www.nuget.org/packages/DotnetLibraryViewer/)
@@ -29,22 +29,22 @@ dotnet tool install -g DotnetLibraryViewer
 
 ```bash
 # Generate full Markdown documentation
-dlv doc <package>
+dotnet-lib-view doc <package>
 
 # Search types by keyword (wildcards: * and ?)
-dlv query-type <package> -k <pattern>
+dotnet-lib-view query-type <package> -k <pattern>
 
 # Search members by keyword
-dlv query-member <package> -k <pattern>
+dotnet-lib-view query-member <package> -k <pattern>
 
 # Show full details of a type or member
-dlv detail <package> -t <type-name>
-dlv detail <package> -t <type-name> -m <member-name>
+dotnet-lib-view detail <package> -t <type-name>
+dotnet-lib-view detail <package> -t <type-name> -m <member-name>
 
 # Use a local DLL
-dlv doc ./path/to/library.dll
-dlv query-type ./path/to/library.dll -k *Service*
-dlv detail ./path/to/library.dll -t MyClass -m MyMethod
+dotnet-lib-view doc ./path/to/library.dll
+dotnet-lib-view query-type ./path/to/library.dll -k *Service*
+dotnet-lib-view detail ./path/to/library.dll -t MyClass -m MyMethod
 ```
 
 ### Options
@@ -60,22 +60,22 @@ dlv detail ./path/to/library.dll -t MyClass -m MyMethod
 
 ```bash
 # Search for serializer types in Newtonsoft.Json
-dlv query-type Newtonsoft.Json -k *Serializer*
+dotnet-lib-view query-type Newtonsoft.Json -k *Serializer*
 
 # Search for serialize-related members
-dlv query-member Newtonsoft.Json -k *Serialize*
+dotnet-lib-view query-member Newtonsoft.Json -k *Serialize*
 
 # View details of a specific type
-dlv detail Newtonsoft.Json -t JsonSerializer
+dotnet-lib-view detail Newtonsoft.Json -t JsonSerializer
 
 # View details of a specific method
-dlv detail Newtonsoft.Json -t JsonSerializer -m Serialize
+dotnet-lib-view detail Newtonsoft.Json -t JsonSerializer -m Serialize
 
 # Generate and save full documentation
-dlv doc Newtonsoft.Json --output docs.md
+dotnet-lib-view doc Newtonsoft.Json --output docs.md
 
 # Use a specific version and framework
-dlv doc Newtonsoft.Json --package-version 13.0.3 --framework net8.0
+dotnet-lib-view doc Newtonsoft.Json --package-version 13.0.3 --framework net8.0
 ```
 
 ## License
