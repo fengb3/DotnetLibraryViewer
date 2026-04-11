@@ -318,10 +318,7 @@ public static class Program
                 return 1;
             }
 
-            Console.Error.WriteLine($"Resolving {package} v{version1}...");
             var v1 = await ResolveAndReadAsync(package, version1, framework, null, ct);
-
-            Console.Error.WriteLine($"Resolving {package} v{version2}...");
             var v2 = await ResolveAndReadAsync(package, version2, framework, null, ct);
 
             var result = ApiComparer.Compare(v1, v2);
@@ -380,6 +377,13 @@ public static class Program
         if (xmlDoc is not null && resolved.XmlPath is not null)
         {
             AssemblyReader.MergeXmlDocs(assemblyInfo, xmlDoc);
+        }
+        else
+        {
+            var msg = resolved.XmlPath is null
+                ? "Warning: No XML documentation found for this package."
+                : $"Warning: Failed to load XML documentation (expected: {resolved.XmlPath}).";
+            Console.Error.WriteLine(msg);
         }
 
         return assemblyInfo;
