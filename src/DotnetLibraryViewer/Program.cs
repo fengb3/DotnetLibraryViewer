@@ -342,6 +342,9 @@ public static class Program
 
         var parseResult = rootCommand.Parse(args);
 
+        // Check for updates (daily, silent on failure)
+        await UpdateChecker.CheckForUpdateAsync();
+
         // If help is requested for a subcommand, append examples after the default help output
         if (parseResult.Action is HelpAction)
         {
