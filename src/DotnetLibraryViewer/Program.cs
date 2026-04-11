@@ -368,13 +368,10 @@ public static class Program
         if (isLocalDll)
         {
             resolved = PackageResolver.ResolveFromLocalPath(package, xml);
-            Console.Error.WriteLine($"Reading local DLL: {package}");
         }
         else
         {
-            Console.Error.WriteLine($"Resolving NuGet package: {package}...");
             resolved = await PackageResolver.ResolveFromNuGetAsync(package, version, framework, ct);
-            Console.Error.WriteLine($"Found: {resolved.DllPath}");
         }
 
         var assemblyInfo = AssemblyReader.ReadAssembly(resolved.DllPath);
@@ -383,11 +380,6 @@ public static class Program
         if (xmlDoc is not null && resolved.XmlPath is not null)
         {
             AssemblyReader.MergeXmlDocs(assemblyInfo, xmlDoc);
-            Console.Error.WriteLine($"Loaded XML docs: {resolved.XmlPath}");
-        }
-        else
-        {
-            Console.Error.WriteLine("No XML documentation found.");
         }
 
         return assemblyInfo;
