@@ -339,6 +339,9 @@ public static class Program
 
         var parseResult = rootCommand.Parse(args);
 
+        // Check for updates (daily, fire-and-forget, silent on failure)
+        UpdateChecker.CheckForUpdate();
+
         // If help is requested for a subcommand, append examples after the default help output
         if (parseResult.Action is HelpAction)
         {
