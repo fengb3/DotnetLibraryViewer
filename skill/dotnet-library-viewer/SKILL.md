@@ -43,3 +43,8 @@ Run `dotnet-lib-view <command> --help` for full usage and examples.
 2. `dotnet-lib-view query-member <package> -k *keyword*` — find relevant members
 3. `dotnet-lib-view detail <package> -t <type> -m <member>` — get full details
 4. `dotnet-lib-view doc <package> --output docs.md` — export everything
+
+
+## Github
+
+if u want to contribute, report an issue, or just check out the source code, visit the [GitHub repo](https://github.com/fengb3/DotnetLibraryViewer).
