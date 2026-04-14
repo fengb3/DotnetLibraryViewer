@@ -365,12 +365,79 @@ public static class Program
             return 0;
         });
 
+        // === list-packages subcommand ===
+        var lpQueryArg = new Argument<string>("query") { Description = "Search query (e.g. package name prefix)" };
+        var lpTakeOption = new Option<int>("--take")
+        {
+            Description = "Number of results to show (default: 20)",
+            DefaultValueFactory = _ => 20
+        };
+
+        var listPackagesCommand = new Command("list-packages", "Search for NuGet packages by name or keyword")
+        {
+            lpQueryArg,
+            lpTakeOption
+        };
+        CommandExamples[listPackagesCommand] =
+        [
+            ("Search by prefix", "dotnet lib-view list-packages Microsoft.Extensions.AI"),
+            ("Limit results", "dotnet lib-view list-packages Serilog --take 5")
+        ];
+
+        listPackagesCommand.SetAction(async (parseResult, ct) =>
+        {
+            var query = parseResult.GetValue(lpQueryArg)!;
+            var take = parseResult.GetValue(lpTakeOption);
+
+            if (string.IsNullOrWhiteSpace(query))
+            {
+                Console.Error.WriteLine("Error: Search query cannot be empty.");
+                Console.Error.WriteLine("Usage example: dotnet lib-view list-packages Microsoft.Extensions");
+                return 1;
+            }
+
+            if (take < 1 || take > 100)
+            {
+                Console.Error.WriteLine("Error: --take must be between 1 and 100.");
+                return 1;
+            }
+
+            IReadOnlyList<NuGetPackageResult> results;
+            try
+            {
+                results = await NuGetSearchClient.SearchAsync(query, take, ct);
+            }
+            catch (HttpRequestException ex)
+            {
+                Console.Error.WriteLine($"Error: Failed to search NuGet: {ex.Message}");
+                return 1;
+            }
+            catch (TaskCanceledException)
+            {
+                var message = ct.IsCancellationRequested
+                    ? "Error: NuGet search was canceled."
+                    : "Error: NuGet search timed out. Try again or use --take to request fewer results.";
+                Console.Error.WriteLine(message);
+                return 1;
+            }
+
+            if (results.Count == 0)
+            {
+                Console.WriteLine($"No packages found matching '{query}'.");
+                return 0;
+            }
+
+            OutputFormatter.ListPackages(results);
+            return 0;
+        });
+
         // Add subcommands to root
         rootCommand.Subcommands.Add(docCommand);
         rootCommand.Subcommands.Add(queryTypeCommand);
         rootCommand.Subcommands.Add(queryMemberCommand);
         rootCommand.Subcommands.Add(detailCommand);
         rootCommand.Subcommands.Add(compareVersionCommand);
+        rootCommand.Subcommands.Add(listPackagesCommand);
 
         var parseResult = rootCommand.Parse(args);
 
