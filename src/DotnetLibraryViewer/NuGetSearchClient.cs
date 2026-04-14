@@ -44,6 +44,7 @@ public static class NuGetSearchClient
             results.Add(new NuGetPackageResult(id, description, downloads, version));
         }
 
+        results.Sort((a, b) => b.TotalDownloads.CompareTo(a.TotalDownloads));
         return results;
     }
 }

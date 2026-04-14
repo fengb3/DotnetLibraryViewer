@@ -191,14 +191,16 @@ public static class OutputFormatter
     {
         const int nameWidth = 50;
         const int downloadsWidth = 12;
+        const int versionWidth = 12;
 
         foreach (var pkg in packages)
         {
             var name = TruncatePad(pkg.Id, nameWidth);
             var downloads = FormatDownloads(pkg.TotalDownloads).PadLeft(downloadsWidth);
-            var description = Truncate(pkg.Description ?? "", 60);
+            var version = TruncatePad(pkg.Version, versionWidth);
+            var description = Truncate(pkg.Description ?? "", 50);
 
-            Console.WriteLine($"  {name} {downloads}  {description}");
+            Console.WriteLine($"  {name} {downloads} {version}  {description}");
         }
 
         Console.WriteLine();

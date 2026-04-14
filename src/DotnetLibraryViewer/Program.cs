@@ -361,14 +361,28 @@ public static class Program
                 return 1;
             }
 
+            if (take < 1 || take > 100)
+            {
+                Console.Error.WriteLine("Error: --take must be between 1 and 100.");
+                return 1;
+            }
+
             IReadOnlyList<NuGetPackageResult> results;
             try
             {
                 results = await NuGetSearchClient.SearchAsync(query, take, ct);
             }
-            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+            catch (HttpRequestException ex)
             {
                 Console.Error.WriteLine($"Error: Failed to search NuGet: {ex.Message}");
+                return 1;
+            }
+            catch (TaskCanceledException)
+            {
+                var message = ct.IsCancellationRequested
+                    ? "Error: NuGet search was canceled."
+                    : "Error: NuGet search timed out. Try again or use --take to request fewer results.";
+                Console.Error.WriteLine(message);
                 return 1;
             }
 
