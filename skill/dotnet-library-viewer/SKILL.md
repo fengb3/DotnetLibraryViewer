@@ -42,12 +42,12 @@ Run `dotnet-lib-view <command> --help` for full usage and examples.
 
 Most commands support these options:
 
-| Option                     | Description                                   |
-| -------------------------- | --------------------------------------------- |
-| `--package-version <ver>`  | Package version (NuGet mode)                  |
-| `--framework <tfm>`       | Target framework moniker (e.g. net8.0)        |
-| `--xml <path>`             | Path to XML documentation file (local DLL)    |
-| `-n` / `--namespace <ns>` | Filter by namespace (wildcard supported)      |
+| Option                    | Description                                |
+| ------------------------- | ------------------------------------------ |
+| `--package-version <ver>` | Package version (NuGet mode)               |
+| `--framework <tfm>`       | Target framework moniker (e.g. net8.0)     |
+| `--xml <path>`            | Path to XML documentation file (local DLL) |
+| `-n` / `--namespace <ns>` | Filter by namespace (wildcard supported)   |
 
 `detail` also supports `--include-inherited <bool>` (default: true) to show or hide inherited members.
 
