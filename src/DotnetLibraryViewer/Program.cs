@@ -197,12 +197,18 @@ public static class Program
         var dPackageArg = new Argument<string>("package") { Description = "NuGet package name or path to a DLL file" };
         var dTypeOption = new Option<string>("--type", "-t") { Description = "Type name to inspect", Required = true };
         var dMemberOption = new Option<string?>("--member", "-m") { Description = "Member name to inspect (optional)" };
+        var dIncludeInheritedOption = new Option<bool>("--include-inherited")
+        {
+            Description = "Include inherited members from base types (default: true)",
+            DefaultValueFactory = _ => true
+        };
 
         var detailCommand = new Command("detail", "Show detailed information about a type or member")
         {
             dPackageArg,
             dTypeOption,
             dMemberOption,
+            dIncludeInheritedOption,
             versionOption,
             frameworkOption,
             xmlOption,
@@ -212,7 +218,8 @@ public static class Program
         [
             ("Inspect a type", "dotnet lib-view detail Newtonsoft.Json -t JsonSerializer"),
             ("Inspect a specific member", "dotnet lib-view detail Newtonsoft.Json -t JsonSerializer -m Serialize"),
-            ("Works with local DLLs", "dotnet lib-view detail ./MyLib.dll -t MyNamespace.MyClass")
+            ("Works with local DLLs", "dotnet lib-view detail ./MyLib.dll -t MyNamespace.MyClass"),
+            ("Hide inherited members", "dotnet lib-view detail Newtonsoft.Json -t JsonSerializer --include-inherited false")
         ];
 
         detailCommand.SetAction(async (parseResult, ct) =>
@@ -220,6 +227,7 @@ public static class Program
             var package = parseResult.GetValue(dPackageArg)!;
             var typeName = parseResult.GetValue(dTypeOption)!;
             var memberName = parseResult.GetValue(dMemberOption);
+            var includeInherited = parseResult.GetValue(dIncludeInheritedOption);
             var version = parseResult.GetValue(versionOption);
             var framework = parseResult.GetValue(frameworkOption);
             var xml = parseResult.GetValue(xmlOption);
@@ -262,6 +270,11 @@ public static class Program
                 }
 
                 return 1;
+            }
+
+            if (!includeInherited)
+            {
+                type = type with { Members = type.Members.Where(m => !m.IsInherited).ToList() };
             }
 
             if (memberName is not null)

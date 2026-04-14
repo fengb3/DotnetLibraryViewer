@@ -21,6 +21,7 @@ public static class AssemblyReader
         var version = assemblyDef.Version.ToString();
 
         var types = new List<TypeInfo>();
+        var handleToFullName = new Dictionary<TypeDefinitionHandle, string>();
 
         foreach (var typeHandle in reader.TypeDefinitions)
         {
@@ -34,10 +35,75 @@ public static class AssemblyReader
             if (visibility != Accessibility.Public && visibility != Accessibility.Protected)
                 continue;
 
+            var (fullName, _, _) = ResolveTypeName(reader, typeHandle);
+            handleToFullName[typeHandle] = fullName;
+
             types.Add(ReadTypeInfo(reader, typeDef, typeName, typeHandle));
         }
 
+        var typeLookup = types.ToDictionary(t => t.FullName);
+        CollectInheritedMembers(reader, types, handleToFullName, typeLookup);
+
         return new AssemblyInfo(assemblyName, version, null, types);
+    }
+
+    private static void CollectInheritedMembers(
+        MetadataReader reader,
+        List<TypeInfo> types,
+        Dictionary<TypeDefinitionHandle, string> handleToFullName,
+        Dictionary<string, TypeInfo> typeLookup)
+    {
+        var fullNameToHandle = new Dictionary<string, TypeDefinitionHandle>();
+        foreach (var (handle, name) in handleToFullName)
+            fullNameToHandle[name] = handle;
+
+        for (int i = 0; i < types.Count; i++)
+        {
+            var type = types[i];
+            if (!fullNameToHandle.TryGetValue(type.FullName, out var typeHandle))
+                continue;
+
+            var typeDef = reader.GetTypeDefinition(typeHandle);
+            var inheritedMembers = new List<MemberInfo>();
+            var seenNames = new HashSet<string>(type.Members.Select(m => m.Name));
+
+            var currentBaseHandle = typeDef.BaseType;
+            while (!currentBaseHandle.IsNil)
+            {
+                if (currentBaseHandle.Kind != HandleKind.TypeDefinition)
+                    break;
+
+                var baseTypeDefHandle = (TypeDefinitionHandle)currentBaseHandle;
+                if (!handleToFullName.TryGetValue(baseTypeDefHandle, out var baseFullName))
+                    break;
+
+                var baseTypeDef = reader.GetTypeDefinition(baseTypeDefHandle);
+                var baseDocIdTypeName = baseFullName.Replace('+', '.');
+
+                var baseMembers = new List<MemberInfo>();
+                baseMembers.AddRange(ReadProperties(reader, baseTypeDef, baseDocIdTypeName));
+                baseMembers.AddRange(ReadMethods(reader, baseTypeDef, baseDocIdTypeName));
+                baseMembers.AddRange(ReadFields(reader, baseTypeDef, baseDocIdTypeName, DetermineTypeKind(reader, baseTypeDef)));
+                baseMembers.AddRange(ReadEvents(reader, baseTypeDef, baseDocIdTypeName));
+
+                foreach (var member in baseMembers)
+                {
+                    if (member.Kind == MemberKind.Constructor) continue;
+                    if (!seenNames.Add(member.Name)) continue;
+                    inheritedMembers.Add(member with { IsInherited = true });
+                }
+
+                currentBaseHandle = baseTypeDef.BaseType;
+            }
+
+            if (inheritedMembers.Count > 0)
+            {
+                types[i] = type with
+                {
+                    Members = [..type.Members, ..inheritedMembers]
+                };
+            }
+        }
     }
 
     public static void MergeXmlDocs(AssemblyInfo assembly, XmlDocReader xmlDoc)

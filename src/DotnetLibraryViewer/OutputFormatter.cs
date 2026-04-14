@@ -170,7 +170,8 @@ public static class OutputFormatter
         Console.WriteLine($"  {title}:");
         foreach (var m in list)
         {
-            var line = showType ? $"    {m.Signature}" : $"    {m.Signature}";
+            var inherited = m.IsInherited ? "[inherited] " : "";
+            var line = $"    {inherited}{m.Signature}";
             Console.WriteLine(line);
         }
     }
