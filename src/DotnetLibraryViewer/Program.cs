@@ -210,12 +210,18 @@ public static class Program
         var dPackageArg = new Argument<string>("package") { Description = "NuGet package name or path to a DLL file" };
         var dTypeOption = new Option<string>("--type", "-t") { Description = "Type name to inspect" };
         var dMemberOption = new Option<string?>("--member", "-m") { Description = "Member name to inspect (optional)" };
+        var dIncludeInheritedOption = new Option<bool>("--include-inherited")
+        {
+            Description = "Include inherited members from base types (default: true)",
+            DefaultValueFactory = _ => true
+        };
 
         var detailCommand = new Command("detail", "Show detailed information about a type or member")
         {
             dPackageArg,
             dTypeOption,
             dMemberOption,
+            dIncludeInheritedOption,
             versionOption,
             frameworkOption,
             xmlOption,
@@ -225,7 +231,8 @@ public static class Program
         [
             ("Inspect a type", "dotnet lib-view detail Newtonsoft.Json -t JsonSerializer"),
             ("Inspect a specific member", "dotnet lib-view detail Newtonsoft.Json -t JsonSerializer -m Serialize"),
-            ("Works with local DLLs", "dotnet lib-view detail ./MyLib.dll -t MyNamespace.MyClass")
+            ("Works with local DLLs", "dotnet lib-view detail ./MyLib.dll -t MyNamespace.MyClass"),
+            ("Hide inherited members", "dotnet lib-view detail Newtonsoft.Json -t JsonSerializer --include-inherited false")
         ];
 
         detailCommand.SetAction(async (parseResult, ct) =>
@@ -236,12 +243,13 @@ public static class Program
                 return MissingRequiredOption("-t/--type",
                     "dotnet lib-view detail Newtonsoft.Json -t JsonSerializer");
             var memberName = parseResult.GetValue(dMemberOption);
+            var includeInherited = parseResult.GetValue(dIncludeInheritedOption);
             var version = parseResult.GetValue(versionOption);
             var framework = parseResult.GetValue(frameworkOption);
             var xml = parseResult.GetValue(xmlOption);
             var nsFilter = parseResult.GetValue(namespaceOption);
 
-            var assembly = await ResolveAndReadAsync(package, version, framework, xml, ct);
+            var assembly = await ResolveAndReadAsync(package, version, framework, xml, ct, includeInherited: true);
 
             var candidateTypes = assembly.Types.AsEnumerable();
             if (nsFilter is not null)
@@ -278,6 +286,11 @@ public static class Program
                 }
 
                 return 1;
+            }
+
+            if (!includeInherited)
+            {
+                type = type with { Members = type.Members.Where(m => !m.IsInherited).ToList() };
             }
 
             if (memberName is not null)
@@ -381,7 +394,7 @@ public static class Program
 
     private static async Task<AssemblyInfo> ResolveAndReadAsync(
         string package, string? version, string? framework,
-        string? xml, CancellationToken ct)
+        string? xml, CancellationToken ct, bool includeInherited = false)
     {
         var isLocalDll = package.EndsWith(".dll", StringComparison.OrdinalIgnoreCase)
                         && File.Exists(package);
@@ -396,7 +409,7 @@ public static class Program
             resolved = await PackageResolver.ResolveFromNuGetAsync(package, version, framework, ct);
         }
 
-        var assemblyInfo = AssemblyReader.ReadAssembly(resolved.DllPath);
+        var assemblyInfo = AssemblyReader.ReadAssembly(resolved.DllPath, includeInherited);
 
         var xmlDoc = XmlDocReader.Load(resolved.XmlPath);
         if (xmlDoc is not null && resolved.XmlPath is not null)
