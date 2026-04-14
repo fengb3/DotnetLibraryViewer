@@ -187,6 +187,34 @@ public static class OutputFormatter
     private static string Truncate(string text, int maxLength)
         => text.Length <= maxLength ? text : text[..(maxLength - 3)] + "...";
 
+    public static void ListPackages(IReadOnlyList<NuGetPackageResult> packages)
+    {
+        const int nameWidth = 50;
+        const int downloadsWidth = 12;
+
+        foreach (var pkg in packages)
+        {
+            var name = TruncatePad(pkg.Id, nameWidth);
+            var downloads = FormatDownloads(pkg.TotalDownloads).PadLeft(downloadsWidth);
+            var description = Truncate(pkg.Description ?? "", 60);
+
+            Console.WriteLine($"  {name} {downloads}  {description}");
+        }
+
+        Console.WriteLine();
+        Console.WriteLine($"{packages.Count} package(s) found.");
+    }
+
+    private static string FormatDownloads(long count) => count switch
+    {
+        >= 1_000_000_000 => $"{count / 1_000_000_000.0:F1}B",
+        >= 1_000_000 => $"{count / 1_000_000.0:F1}M",
+        >= 1_000 => $"{count / 1_000.0:F1}K",
+        _ => count.ToString()
+    };
+
+    private static string TruncatePad(string text, int width)
+        => text.Length > width ? text[..(width - 2)] + ".." : text.PadRight(width);
     public static void WriteComparisonResult(VersionComparisonResult result)
     {
         Console.WriteLine($"Comparing {result.PackageName} v{result.Version1} -> v{result.Version2}");
