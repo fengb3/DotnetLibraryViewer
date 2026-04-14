@@ -9,6 +9,13 @@ public static class Program
 {
     private static readonly Dictionary<Command, (string desc, string cmd)[]> CommandExamples = new();
 
+    private static int MissingRequiredOption(string optionName, string example)
+    {
+        Console.Error.WriteLine($"Error: Required option '{optionName}' is missing.");
+        Console.Error.WriteLine($"Usage example: {example}");
+        return 1;
+    }
+
     private static void WriteExamples(Command command)
     {
         if (!CommandExamples.TryGetValue(command, out var examples)) return;
@@ -91,7 +98,7 @@ public static class Program
 
         // === query-type subcommand ===
         var qtPackageArg = new Argument<string>("package") { Description = "NuGet package name or path to a DLL file" };
-        var qtKeywordOption = new Option<string>("--keyword", "-k") { Description = "Wildcard pattern to match type names (* and ? supported)", Required = true };
+        var qtKeywordOption = new Option<string>("--keyword", "-k") { Description = "Wildcard pattern to match type names (* and ? supported)" };
 
         var queryTypeCommand = new Command("query-type", "List types matching a keyword pattern")
         {
@@ -111,7 +118,10 @@ public static class Program
         queryTypeCommand.SetAction(async (parseResult, ct) =>
         {
             var package = parseResult.GetValue(qtPackageArg)!;
-            var keyword = parseResult.GetValue(qtKeywordOption)!;
+            var keyword = parseResult.GetValue(qtKeywordOption);
+            if (string.IsNullOrEmpty(keyword))
+                return MissingRequiredOption("-k/--keyword",
+                    "dotnet lib-view query-type Newtonsoft.Json -k *Serializer*");
             var version = parseResult.GetValue(versionOption);
             var framework = parseResult.GetValue(frameworkOption);
             var xml = parseResult.GetValue(xmlOption);
@@ -135,7 +145,7 @@ public static class Program
 
         // === query-member subcommand ===
         var qmPackageArg = new Argument<string>("package") { Description = "NuGet package name or path to a DLL file" };
-        var qmKeywordOption = new Option<string>("--keyword", "-k") { Description = "Wildcard pattern to match member names (* and ? supported)", Required = true };
+        var qmKeywordOption = new Option<string>("--keyword", "-k") { Description = "Wildcard pattern to match member names (* and ? supported)" };
         var qmTypeOption = new Option<string?>("--type", "-t") { Description = "Limit search to a specific type name (wildcard supported)" };
 
         var queryMemberCommand = new Command("query-member", "List members matching a keyword pattern")
@@ -157,7 +167,10 @@ public static class Program
         queryMemberCommand.SetAction(async (parseResult, ct) =>
         {
             var package = parseResult.GetValue(qmPackageArg)!;
-            var keyword = parseResult.GetValue(qmKeywordOption)!;
+            var keyword = parseResult.GetValue(qmKeywordOption);
+            if (string.IsNullOrEmpty(keyword))
+                return MissingRequiredOption("-k/--keyword",
+                    "dotnet lib-view query-member Newtonsoft.Json -k *Serialize*");
             var typeFilter = parseResult.GetValue(qmTypeOption);
             var version = parseResult.GetValue(versionOption);
             var framework = parseResult.GetValue(frameworkOption);
@@ -195,7 +208,7 @@ public static class Program
 
         // === detail subcommand ===
         var dPackageArg = new Argument<string>("package") { Description = "NuGet package name or path to a DLL file" };
-        var dTypeOption = new Option<string>("--type", "-t") { Description = "Type name to inspect", Required = true };
+        var dTypeOption = new Option<string>("--type", "-t") { Description = "Type name to inspect" };
         var dMemberOption = new Option<string?>("--member", "-m") { Description = "Member name to inspect (optional)" };
 
         var detailCommand = new Command("detail", "Show detailed information about a type or member")
@@ -218,7 +231,10 @@ public static class Program
         detailCommand.SetAction(async (parseResult, ct) =>
         {
             var package = parseResult.GetValue(dPackageArg)!;
-            var typeName = parseResult.GetValue(dTypeOption)!;
+            var typeName = parseResult.GetValue(dTypeOption);
+            if (string.IsNullOrEmpty(typeName))
+                return MissingRequiredOption("-t/--type",
+                    "dotnet lib-view detail Newtonsoft.Json -t JsonSerializer");
             var memberName = parseResult.GetValue(dMemberOption);
             var version = parseResult.GetValue(versionOption);
             var framework = parseResult.GetValue(frameworkOption);
@@ -287,8 +303,8 @@ public static class Program
 
         // === compare-version subcommand ===
         var cvPackageArg = new Argument<string>("package") { Description = "NuGet package name" };
-        var cvV1Option = new Option<string>("--version1", "-v1") { Description = "First version to compare", Required = true };
-        var cvV2Option = new Option<string>("--version2", "-v2") { Description = "Second version to compare", Required = true };
+        var cvV1Option = new Option<string>("--version1", "-v1") { Description = "First version to compare" };
+        var cvV2Option = new Option<string>("--version2", "-v2") { Description = "Second version to compare" };
 
         var compareVersionCommand = new Command("compare-version", "Compare API surface between two versions of a package")
         {
@@ -307,8 +323,14 @@ public static class Program
         compareVersionCommand.SetAction(async (parseResult, ct) =>
         {
             var package = parseResult.GetValue(cvPackageArg)!;
-            var version1 = parseResult.GetValue(cvV1Option)!;
-            var version2 = parseResult.GetValue(cvV2Option)!;
+            var version1 = parseResult.GetValue(cvV1Option);
+            var version2 = parseResult.GetValue(cvV2Option);
+            if (string.IsNullOrEmpty(version1))
+                return MissingRequiredOption("-v1/--version1",
+                    "dotnet lib-view compare-version Serilog -v1 2.12.0 -v2 3.1.1");
+            if (string.IsNullOrEmpty(version2))
+                return MissingRequiredOption("-v2/--version2",
+                    "dotnet lib-view compare-version Serilog -v1 2.12.0 -v2 3.1.1");
             var framework = parseResult.GetValue(frameworkOption);
             var nsFilter = parseResult.GetValue(namespaceOption);
 
