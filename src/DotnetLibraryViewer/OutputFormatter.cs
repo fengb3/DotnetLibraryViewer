@@ -99,10 +99,10 @@ public static class OutputFormatter
             Console.WriteLine($"  Summary: {type.XmlDocSummary}");
         }
 
-        WriteMemberGroup("Properties", type.Members.Where(m => m.Kind == MemberKind.Property), showType: true);
-        WriteMemberGroup("Methods", type.Members.Where(m => m.Kind is MemberKind.Method or MemberKind.Constructor), showType: false);
-        WriteMemberGroup("Fields", type.Members.Where(m => m.Kind == MemberKind.Field), showType: true);
-        WriteMemberGroup("Events", type.Members.Where(m => m.Kind == MemberKind.Event), showType: true);
+        WriteMemberGroup("Properties", type.Members.Where(m => m.Kind == MemberKind.Property));
+        WriteMemberGroup("Methods", type.Members.Where(m => m.Kind is MemberKind.Method or MemberKind.Constructor));
+        WriteMemberGroup("Fields", type.Members.Where(m => m.Kind == MemberKind.Field));
+        WriteMemberGroup("Events", type.Members.Where(m => m.Kind == MemberKind.Event));
     }
 
     public static void WriteMemberDetail(TypeInfo type, MemberInfo member)
@@ -161,7 +161,7 @@ public static class OutputFormatter
         }
     }
 
-    private static void WriteMemberGroup(string title, IEnumerable<MemberInfo> members, bool showType)
+    private static void WriteMemberGroup(string title, IEnumerable<MemberInfo> members)
     {
         var list = members.ToList();
         if (list.Count == 0) return;

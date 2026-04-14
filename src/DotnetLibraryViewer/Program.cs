@@ -233,7 +233,7 @@ public static class Program
             var xml = parseResult.GetValue(xmlOption);
             var nsFilter = parseResult.GetValue(namespaceOption);
 
-            var assembly = await ResolveAndReadAsync(package, version, framework, xml, ct);
+            var assembly = await ResolveAndReadAsync(package, version, framework, xml, ct, includeInherited: true);
 
             var candidateTypes = assembly.Types.AsEnumerable();
             if (nsFilter is not null)
@@ -372,7 +372,7 @@ public static class Program
 
     private static async Task<AssemblyInfo> ResolveAndReadAsync(
         string package, string? version, string? framework,
-        string? xml, CancellationToken ct)
+        string? xml, CancellationToken ct, bool includeInherited = false)
     {
         var isLocalDll = package.EndsWith(".dll", StringComparison.OrdinalIgnoreCase)
                         && File.Exists(package);
@@ -387,7 +387,7 @@ public static class Program
             resolved = await PackageResolver.ResolveFromNuGetAsync(package, version, framework, ct);
         }
 
-        var assemblyInfo = AssemblyReader.ReadAssembly(resolved.DllPath);
+        var assemblyInfo = AssemblyReader.ReadAssembly(resolved.DllPath, includeInherited);
 
         var xmlDoc = XmlDocReader.Load(resolved.XmlPath);
         if (xmlDoc is not null && resolved.XmlPath is not null)

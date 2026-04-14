@@ -10,7 +10,7 @@ namespace DotnetLibraryViewer;
 
 public static class AssemblyReader
 {
-    public static AssemblyInfo ReadAssembly(string dllPath)
+    public static AssemblyInfo ReadAssembly(string dllPath, bool includeInherited = false)
     {
         using var stream = File.OpenRead(dllPath);
         using var peReader = new PEReader(stream);
@@ -41,21 +41,81 @@ public static class AssemblyReader
             types.Add(ReadTypeInfo(reader, typeDef, typeName, typeHandle));
         }
 
-        var typeLookup = types.ToDictionary(t => t.FullName);
-        CollectInheritedMembers(reader, types, handleToFullName, typeLookup);
+        if (includeInherited)
+            CollectInheritedMembers(reader, types, handleToFullName);
 
         return new AssemblyInfo(assemblyName, version, null, types);
+    }
+
+    private static TypeDefinitionHandle? ResolveToTypeDefinitionHandle(EntityHandle handle, MetadataReader reader)
+    {
+        return handle.Kind switch
+        {
+            HandleKind.TypeDefinition => (TypeDefinitionHandle)handle,
+            HandleKind.TypeSpecification => ResolveTypeSpecToDefinition(handle, reader),
+            _ => null
+        };
+    }
+
+    private static TypeDefinitionHandle? ResolveTypeSpecToDefinition(EntityHandle handle, MetadataReader reader)
+    {
+        // For TypeSpecification (e.g. constructed generic base types),
+        // try to extract the underlying generic type definition.
+        try
+        {
+            var typeSpec = reader.GetTypeSpecification((TypeSpecificationHandle)handle);
+            // Decode to get the provider which visits the generic type
+            var provider = new TypeDefinitionResolver();
+            typeSpec.DecodeSignature(provider, null);
+            return provider.ResolvedHandle;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private sealed class TypeDefinitionResolver : ISignatureTypeProvider<TypeDefinitionHandle?, object?>
+    {
+        public TypeDefinitionHandle? ResolvedHandle { get; private set; }
+
+        public TypeDefinitionHandle? GetPrimitiveType(PrimitiveTypeCode typeCode) => null;
+        public TypeDefinitionHandle? GetSZArrayType(TypeDefinitionHandle? elementType) => elementType;
+        public TypeDefinitionHandle? GetByReferenceType(TypeDefinitionHandle? elementType) => elementType;
+        public TypeDefinitionHandle? GetPointerType(TypeDefinitionHandle? elementType) => elementType;
+        public TypeDefinitionHandle? GetPinnedType(TypeDefinitionHandle? elementType) => elementType;
+
+        public TypeDefinitionHandle? GetGenericInstantiation(TypeDefinitionHandle? genericType, ImmutableArray<TypeDefinitionHandle?> typeArguments)
+            => genericType;
+
+        public TypeDefinitionHandle? GetArrayType(TypeDefinitionHandle? elementType, ArrayShape shape) => elementType;
+        public TypeDefinitionHandle? GetGenericTypeParameter(object? genericContext, int index) => null;
+        public TypeDefinitionHandle? GetGenericMethodParameter(object? genericContext, int index) => null;
+        public TypeDefinitionHandle? GetModifiedType(TypeDefinitionHandle? modifier, TypeDefinitionHandle? unmodifiedType, bool isRequired) => unmodifiedType;
+        public TypeDefinitionHandle? GetFunctionPointerType(MethodSignature<TypeDefinitionHandle?> signature) => null;
+
+        public TypeDefinitionHandle? GetTypeFromDefinition(MetadataReader reader, TypeDefinitionHandle handle, byte rawTypeKind)
+        {
+            ResolvedHandle = handle;
+            return handle;
+        }
+
+        public TypeDefinitionHandle? GetTypeFromReference(MetadataReader reader, TypeReferenceHandle handle, byte rawTypeKind) => null;
+        public TypeDefinitionHandle? GetTypeFromSpecification(MetadataReader reader, object? genericContext, TypeSpecificationHandle handle, byte rawTypeKind)
+            => reader.GetTypeSpecification(handle).DecodeSignature(this, genericContext);
     }
 
     private static void CollectInheritedMembers(
         MetadataReader reader,
         List<TypeInfo> types,
-        Dictionary<TypeDefinitionHandle, string> handleToFullName,
-        Dictionary<string, TypeInfo> typeLookup)
+        Dictionary<TypeDefinitionHandle, string> handleToFullName)
     {
         var fullNameToHandle = new Dictionary<string, TypeDefinitionHandle>();
         foreach (var (handle, name) in handleToFullName)
             fullNameToHandle[name] = handle;
+
+        // Cache base type members to avoid re-decoding for shared base classes
+        var baseMembersCache = new Dictionary<TypeDefinitionHandle, List<MemberInfo>>();
 
         for (int i = 0; i < types.Count; i++)
         {
@@ -65,35 +125,40 @@ public static class AssemblyReader
 
             var typeDef = reader.GetTypeDefinition(typeHandle);
             var inheritedMembers = new List<MemberInfo>();
-            var seenNames = new HashSet<string>(type.Members.Select(m => m.Name));
+            var seenDocIds = new HashSet<string>(type.Members.Select(m => m.DocId));
 
             var currentBaseHandle = typeDef.BaseType;
             while (!currentBaseHandle.IsNil)
             {
-                if (currentBaseHandle.Kind != HandleKind.TypeDefinition)
+                var baseTypeDefHandle = ResolveToTypeDefinitionHandle(currentBaseHandle, reader);
+                if (baseTypeDefHandle is null)
                     break;
 
-                var baseTypeDefHandle = (TypeDefinitionHandle)currentBaseHandle;
-                if (!handleToFullName.TryGetValue(baseTypeDefHandle, out var baseFullName))
+                if (!handleToFullName.TryGetValue(baseTypeDefHandle.Value, out var baseFullName))
                     break;
 
-                var baseTypeDef = reader.GetTypeDefinition(baseTypeDefHandle);
-                var baseDocIdTypeName = baseFullName.Replace('+', '.');
-
-                var baseMembers = new List<MemberInfo>();
-                baseMembers.AddRange(ReadProperties(reader, baseTypeDef, baseDocIdTypeName));
-                baseMembers.AddRange(ReadMethods(reader, baseTypeDef, baseDocIdTypeName));
-                baseMembers.AddRange(ReadFields(reader, baseTypeDef, baseDocIdTypeName, DetermineTypeKind(reader, baseTypeDef)));
-                baseMembers.AddRange(ReadEvents(reader, baseTypeDef, baseDocIdTypeName));
+                if (!baseMembersCache.TryGetValue(baseTypeDefHandle.Value, out var baseMembers))
+                {
+                    var baseTypeDef = reader.GetTypeDefinition(baseTypeDefHandle.Value);
+                    var baseDocIdTypeName = baseFullName.Replace('+', '.');
+                    baseMembers = [];
+                    baseMembers.AddRange(ReadProperties(reader, baseTypeDef, baseDocIdTypeName));
+                    baseMembers.AddRange(ReadMethods(reader, baseTypeDef, baseDocIdTypeName));
+                    baseMembers.AddRange(ReadFields(reader, baseTypeDef, baseDocIdTypeName, DetermineTypeKind(reader, baseTypeDef)));
+                    baseMembers.AddRange(ReadEvents(reader, baseTypeDef, baseDocIdTypeName));
+                    baseMembersCache[baseTypeDefHandle.Value] = baseMembers;
+                }
 
                 foreach (var member in baseMembers)
                 {
                     if (member.Kind == MemberKind.Constructor) continue;
-                    if (!seenNames.Add(member.Name)) continue;
+                    if (!seenDocIds.Add(member.DocId)) continue;
                     inheritedMembers.Add(member with { IsInherited = true });
                 }
 
-                currentBaseHandle = baseTypeDef.BaseType;
+                // Walk to the next base type in the chain
+                var baseTypeDef2 = reader.GetTypeDefinition(baseTypeDefHandle.Value);
+                currentBaseHandle = baseTypeDef2.BaseType;
             }
 
             if (inheritedMembers.Count > 0)
