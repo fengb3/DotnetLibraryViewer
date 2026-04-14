@@ -78,6 +78,17 @@ dotnet-lib-view doc Newtonsoft.Json --output docs.md
 dotnet-lib-view doc Newtonsoft.Json --package-version 13.0.3 --framework net8.0
 ```
 
+## Install as a Claude Code Skill
+
+This tool is also available as a Claude Code skill, allowing Claude to directly query .NET assembly metadata.
+
+1. Download the latest `.skill` file from [GitHub Releases](https://github.com/fengb3/DotnetLibraryViewer/releases?q=skill)
+2. Install it with:
+
+```bash
+claude install-skill dotnet-library-viewer.skill
+```
+
 ## License
 
 [MIT](LICENSE)

@@ -24,10 +24,11 @@ jobs:
           COMMIT_COUNT=$(git rev-list --count HEAD)
           echo "version=1.0.${COMMIT_COUNT}" >> $GITHUB_OUTPUT
 
-      - name: Package .skill file
+      - name: Package skill.zip and rename to .skill
         run: |
           cd skill/dotnet-library-viewer
-          zip -r ../../dotnet-library-viewer.skill .
+          zip -r ../../skill.zip .
+          mv ../../skill.zip ../../dotnet-library-viewer.skill
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
