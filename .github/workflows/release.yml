@@ -111,11 +111,11 @@ jobs:
           path: ./artifacts
           merge-multiple: true
 
-      - name: Zip skill
+      - name: Package skill and rename to .skill
         run: |
-          cd skill
-          zip -r ../artifacts/dotnet-library-viewer.zip .
-          cd ..
+          cd skill/dotnet-library-viewer
+          zip -r ../../artifacts/dotnet-library-viewer.zip .
+          mv ../../artifacts/dotnet-library-viewer.zip ../../artifacts/dotnet-library-viewer.skill
 
       - name: Create tag
         run: git tag v${{ needs.check-version.outputs.version }} && git push origin v${{ needs.check-version.outputs.version }}
