@@ -622,7 +622,8 @@ public static class Program
         // Check for updates (daily, fire-and-forget, silent on failure)
         UpdateChecker.CheckForUpdate();
 
-        // If help is requested for a subcommand, append examples after the default help output
+        // If help is requested for a subcommand, append examples after the default help output.
+        // Subcommand help invocations are safe to run outside the try/catch (help never throws).
         if (parseResult.Action is HelpAction)
         {
             var cmd = parseResult.CommandResult.Command;
@@ -638,17 +639,17 @@ public static class Program
         {
             return await parseResult.InvokeAsync();
         }
-        catch (InvalidOperationException ex) when (
-            ex.Message.StartsWith("Package not found")
-            || ex.Message.StartsWith("No version found")
-            || ex.Message.StartsWith("No compatible assembly")
-            || ex.Message.StartsWith("dotnet ")
-            || ex.Message.StartsWith("Failed to start dotnet"))
+        catch (PackageResolutionException ex)
         {
             Console.Error.WriteLine($"Error: {ex.Message}");
             return 1;
         }
         catch (FileNotFoundException ex)
+        {
+            Console.Error.WriteLine($"Error: {ex.Message}");
+            return 1;
+        }
+        catch (Exception ex)
         {
             Console.Error.WriteLine($"Error: {ex.Message}");
             return 1;
