@@ -186,7 +186,7 @@ public static class OutputFormatter
     }
 
     private static string Truncate(string text, int maxLength)
-        => text.Length <= maxLength ? text : text[..(maxLength - 3)] + "...";
+        => text.Length <= maxLength ? text : text[..(maxLength - 5)] + "[...]";
 
     public static void ListPackages(IReadOnlyList<NuGetPackageResult> packages)
     {

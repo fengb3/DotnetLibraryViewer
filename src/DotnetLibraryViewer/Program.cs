@@ -122,7 +122,7 @@ public static class Program
                 if (output is not null)
                 {
                     await File.WriteAllTextAsync(output, markdown, ct);
-                    Console.Error.WriteLine($"Documentation written to {output}");
+                    Console.WriteLine($"Documentation written to {output}");
                 }
                 else
                 {
@@ -517,7 +517,7 @@ public static class Program
                 var v1 = await ResolveAndReadAsync(package, version1, framework, null, ct);
                 var v2 = await ResolveAndReadAsync(package, version2, framework, null, ct);
 
-                var result = ApiComparer.Compare(v1, v2);
+                var result = ApiComparer.Compare(v1, v2, version1, version2);
 
                 if (nsFilter is not null)
                     result = ApiComparer.FilterByNamespace(result, nsFilter);
@@ -634,7 +634,25 @@ public static class Program
             }
         }
 
-        return await parseResult.InvokeAsync();
+        try
+        {
+            return await parseResult.InvokeAsync();
+        }
+        catch (InvalidOperationException ex) when (
+            ex.Message.StartsWith("Package not found")
+            || ex.Message.StartsWith("No version found")
+            || ex.Message.StartsWith("No compatible assembly")
+            || ex.Message.StartsWith("dotnet ")
+            || ex.Message.StartsWith("Failed to start dotnet"))
+        {
+            Console.Error.WriteLine($"Error: {ex.Message}");
+            return 1;
+        }
+        catch (FileNotFoundException ex)
+        {
+            Console.Error.WriteLine($"Error: {ex.Message}");
+            return 1;
+        }
 
         #endregion
     }
