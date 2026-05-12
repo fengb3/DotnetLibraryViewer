@@ -4,7 +4,8 @@ namespace DotnetLibraryViewer;
 
 public static class ApiComparer
 {
-    public static VersionComparisonResult Compare(AssemblyInfo v1, AssemblyInfo v2)
+    public static VersionComparisonResult Compare(AssemblyInfo v1, AssemblyInfo v2,
+        string? version1Override = null, string? version2Override = null)
     {
         var v1Types = v1.Types.ToDictionary(t => t.FullName);
         var v2Types = v2.Types.ToDictionary(t => t.FullName);
@@ -61,8 +62,8 @@ public static class ApiComparer
 
         return new VersionComparisonResult(
             v2.Name,
-            v1.Version ?? "?",
-            v2.Version ?? "?",
+            version1Override ?? v1.Version ?? "?",
+            version2Override ?? v2.Version ?? "?",
             addedTypes,
             removedTypes,
             newlyObsoleteTypes,

@@ -236,4 +236,17 @@ public class ApiComparerTests
         Assert.Equal("1.0.0", result.Version1);
         Assert.Equal("2.0.0", result.Version2);
     }
+
+    [Fact]
+    public void Compare_WithVersionOverrides_UsesOverridesInResult()
+    {
+        var v1 = MakeAssembly("MyLib", "1.0.0.0");
+        var v2 = MakeAssembly("MyLib", "1.0.0.0");
+
+        var result = ApiComparer.Compare(v1, v2, "13.0.1", "13.0.3");
+
+        Assert.Equal("MyLib", result.PackageName);
+        Assert.Equal("13.0.1", result.Version1);
+        Assert.Equal("13.0.3", result.Version2);
+    }
 }

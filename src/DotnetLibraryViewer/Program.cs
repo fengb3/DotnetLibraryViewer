@@ -102,7 +102,9 @@ public static class Program
                 var xml = parseResult.GetValue(xmlOption);
                 var nsFilter = parseResult.GetValue(namespaceOption);
 
-                var assembly = await ResolveAndReadAsync(package, version, framework, xml, ct);
+                var assembly = await TryResolveAndReadAsync(package, version, framework, xml, ct);
+                if (assembly is null)
+                    return 1;
 
                 if (nsFilter is not null)
                 {
@@ -122,7 +124,7 @@ public static class Program
                 if (output is not null)
                 {
                     await File.WriteAllTextAsync(output, markdown, ct);
-                    Console.Error.WriteLine($"Documentation written to {output}");
+                    Console.WriteLine($"Documentation written to {output}");
                 }
                 else
                 {
@@ -181,7 +183,9 @@ public static class Program
                 var xml = parseResult.GetValue(xmlOption);
                 var nsFilter = parseResult.GetValue(namespaceOption);
 
-                var assembly = await ResolveAndReadAsync(package, version, framework, xml, ct);
+                var assembly = await TryResolveAndReadAsync(package, version, framework, xml, ct);
+                if (assembly is null)
+                    return 1;
 
                 var types = assembly.Types.AsEnumerable();
                 if (nsFilter is not null)
@@ -259,7 +263,9 @@ public static class Program
                 var xml = parseResult.GetValue(xmlOption);
                 var nsFilter = parseResult.GetValue(namespaceOption);
 
-                var assembly = await ResolveAndReadAsync(package, version, framework, xml, ct);
+                var assembly = await TryResolveAndReadAsync(package, version, framework, xml, ct);
+                if (assembly is null)
+                    return 1;
 
                 var results = new List<(TypeInfo Type, MemberInfo Member)>();
                 foreach (var type in assembly.Types)
@@ -364,7 +370,7 @@ public static class Program
                 var xml = parseResult.GetValue(xmlOption);
                 var nsFilter = parseResult.GetValue(namespaceOption);
 
-                var assembly = await ResolveAndReadAsync(
+                var assembly = await TryResolveAndReadAsync(
                     package,
                     version,
                     framework,
@@ -372,6 +378,8 @@ public static class Program
                     ct,
                     includeInherited: true
                 );
+                if (assembly is null)
+                    return 1;
 
                 var candidateTypes = assembly.Types.AsEnumerable();
                 if (nsFilter is not null)
@@ -514,10 +522,15 @@ public static class Program
                     return 1;
                 }
 
-                var v1 = await ResolveAndReadAsync(package, version1, framework, null, ct);
-                var v2 = await ResolveAndReadAsync(package, version2, framework, null, ct);
+                var v1 = await TryResolveAndReadAsync(package, version1, framework, null, ct);
+                if (v1 is null)
+                    return 1;
 
-                var result = ApiComparer.Compare(v1, v2);
+                var v2 = await TryResolveAndReadAsync(package, version2, framework, null, ct);
+                if (v2 is null)
+                    return 1;
+
+                var result = ApiComparer.Compare(v1, v2, version1, version2);
 
                 if (nsFilter is not null)
                     result = ApiComparer.FilterByNamespace(result, nsFilter);
@@ -622,7 +635,8 @@ public static class Program
         // Check for updates (daily, fire-and-forget, silent on failure)
         UpdateChecker.CheckForUpdate();
 
-        // If help is requested for a subcommand, append examples after the default help output
+        // If help is requested for a subcommand, append examples after the default help output.
+        // Subcommand help invocations are safe to run outside the try/catch (help never throws).
         if (parseResult.Action is HelpAction)
         {
             var cmd = parseResult.CommandResult.Command;
@@ -641,7 +655,32 @@ public static class Program
 
     #region Package Resolution
 
-    private static async Task<AssemblyInfo> ResolveAndReadAsync(
+    private static async Task<AssemblyInfo?> TryResolveAndReadAsync(
+        string package,
+        string? version,
+        string? framework,
+        string? xml,
+        CancellationToken ct,
+        bool includeInherited = false
+    )
+    {
+        try
+        {
+            return await ResolveAndReadCoreAsync(package, version, framework, xml, ct, includeInherited);
+        }
+        catch (PackageResolutionException ex)
+        {
+            Console.Error.WriteLine($"Error: {ex.Message}");
+            return null;
+        }
+        catch (FileNotFoundException ex)
+        {
+            Console.Error.WriteLine($"Error: {ex.Message}");
+            return null;
+        }
+    }
+
+    private static async Task<AssemblyInfo> ResolveAndReadCoreAsync(
         string package,
         string? version,
         string? framework,

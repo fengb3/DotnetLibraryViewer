@@ -32,11 +32,11 @@ public static class PackageResolver
                 ".nuget", "packages", packageName.ToLowerInvariant());
 
             if (!Directory.Exists(cachePath))
-                throw new InvalidOperationException($"Package not found in cache: {packageName}");
+                throw new PackageResolutionException($"Package not found in cache: {packageName}");
 
             var resolvedVersion = version ?? FindLatestVersion(cachePath);
             if (resolvedVersion is null)
-                throw new InvalidOperationException($"No version found for package: {packageName}");
+                throw new PackageResolutionException($"No version found for package: {packageName}");
 
             var pkgDir = Path.Combine(cachePath, resolvedVersion);
             var libDir = Path.Combine(pkgDir, "lib");
@@ -44,7 +44,7 @@ public static class PackageResolver
             // Find the best TFM
             var bestTfm = FindBestTfm(libDir, framework);
             if (bestTfm is null)
-                throw new InvalidOperationException($"No compatible assembly found for package: {packageName}");
+                throw new PackageResolutionException($"No compatible assembly found for package: {packageName}");
 
             var tfmDir = Path.Combine(libDir, bestTfm);
 
@@ -76,7 +76,7 @@ public static class PackageResolver
             RedirectStandardError = true,
             UseShellExecute = false,
             CreateNoWindow = true
-        }) ?? throw new InvalidOperationException("Failed to start dotnet process");
+        }) ?? throw new PackageResolutionException("Failed to start dotnet process");
 
         // Read both streams concurrently to avoid deadlock from buffer saturation
         var stdoutTask = process.StandardOutput.ReadToEndAsync(ct);
@@ -88,7 +88,7 @@ public static class PackageResolver
             var stdout = await stdoutTask;
             var stderr = await stderrTask;
             var output = string.IsNullOrEmpty(stderr) ? stdout : $"{stderr}\n{stdout}";
-            throw new InvalidOperationException(
+            throw new PackageResolutionException(
                 $"dotnet {arguments} failed (exit code {process.ExitCode}):\n{output}");
         }
     }
